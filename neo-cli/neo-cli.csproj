@@ -21,6 +21,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Remove="Chain_00746E41\000004.sst" />
+    <None Remove="Index_00746E41\000004.sst" />
+  </ItemGroup>
+  <ItemGroup>
     <None Update="config.json;config.mainnet.json;config.testnet.json;protocol.json;protocol.mainnet.json;protocol.testnet.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
@@ -31,4 +35,10 @@
     <PackageReference Include="Neo" Version="2.7.6.1" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\..\neo\neo\neo.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="PrivateNetwork\" />
+  </ItemGroup>
 </Project>
