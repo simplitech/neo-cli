@@ -8,6 +8,7 @@ using Neo.Wallets;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Numerics;
 using System.Text;
 
 namespace Neo.Cli.Extensions
@@ -54,15 +55,16 @@ namespace Neo.Cli.Extensions
 					outputAppends.Add($"\t{hexString}\n");
 					i = i + byteArraySize;
 				}
-				//TODO Finish (I don't have use for this yet)
-				//else if (currentOpCode == OpCode.PUSHDATA1)
-				//{
-				//	byte byteArraySize = script.Skip(i + 1).Take(1).First();
-				//	var byteArray = script.Skip(i + 1).Take(byteArraySize).ToArray();
-				//	var hexString = byteArray.ToHexString();
-				//	outputAppends.Add($"\t{hexString}\n");
-				//	i = i + 1 + byteArraySize;
-				//}
+				else if (currentOpCode >= OpCode.PUSHDATA1 && currentOpCode <= OpCode.PUSHDATA4)
+				{
+					int opcodeOffset = (int)OpCode.PUSHDATA1;
+					int currentOpcode = (int)currentOpCode;
+					byte byteArraySize = (byte) Math.Pow(opcodeOffset - currentOpcode, 2);
+					var byteArray = script.Skip(i + 1).Take(byteArraySize).ToArray();
+					var numberValue = new BigInteger(byteArray);
+					outputAppends.Add($"\t{numberValue}\n");
+					i = i + 1 + byteArraySize;
+				}
 
 				outputAppends.Add($"\t{currentOpCode.ToString()}\n");
 			}
@@ -147,6 +149,13 @@ namespace Neo.Cli.Extensions
 			return output;
 		}
 
+		public static string ToCLITimestampString(this ulong blockTimestamp)
+		{
+			var blockTime = UnixEpoch.AddMilliseconds(blockTimestamp);
+			blockTime = TimeZoneInfo.ConvertTimeFromUtc(blockTime, TimeZoneInfo.Local);
+			return blockTime.ToShortDateString() + blockTime.ToLongTimeString(); ;
+		}
+
 
 		public static string ToCLIString(this Block block)
 		{
@@ -156,16 +165,11 @@ namespace Neo.Cli.Extensions
 			output += $"Size: {block.Size}\n";
 			output += $"PreviousBlockHash: {block.PrevHash}\n";
 			output += $"MerkleRoot: {block.MerkleRoot}\n";
-			output += $"Time: {block.Timestamp}\n";
+			output += $"Time: {block.Timestamp.ToCLITimestampString()}\n";
 			output += $"NextConsensus: {block.NextConsensus}\n";
 			output += $"Transactions:\n";
 			foreach (Transaction t in block.Transactions)
 			{
-				//output += $"\tHash: {t.Hash}\n";
-				//output += $"\tNetFee: {t.NetworkFee}\n";
-				//output += $"\tSysFee: {t.SystemFee}\n";
-				//output += $"\tSender: {t.Sender}\n";
-				//output += $"\tScript: {t.Script.ToHexString()}\n";
 				output += $"{t.ToCLIString(block.Timestamp)}";
 				output += $"\n";
 			}
@@ -181,9 +185,7 @@ namespace Neo.Cli.Extensions
 			output += $"Hash: {t.Hash}\n";
 			if (blockTimestamp > 0)
 			{
-				var blockTime = UnixEpoch.AddMilliseconds(blockTimestamp);
-				blockTime = TimeZoneInfo.ConvertTimeFromUtc(blockTime, TimeZoneInfo.Local);
-				output += $"Timestamp: {blockTime.ToShortDateString()} {blockTime.ToLongTimeString()}\n";
+				output += $"Timestamp: {blockTimestamp.ToCLITimestampString()}\n";
 			}
 			output += $"NetFee: {new BigDecimal(t.NetworkFee, NeoToken.GAS.Decimals)}\n";
 			output += $"SysFee: {new BigDecimal(t.SystemFee, NeoToken.GAS.Decimals)}\n";
