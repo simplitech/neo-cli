@@ -2,6 +2,7 @@
 using Neo.Network.P2P.Payloads;
 using Neo.SmartContract;
 using Neo.SmartContract.Native.Tokens;
+using Neo.User;
 using Neo.VM;
 using Neo.VM.Types;
 using Neo.Wallets;
@@ -54,16 +55,19 @@ namespace Neo.Cli.Extensions
 					outputAppends.Add($"\t{hexString}\n");
 					i = i + byteArraySize;
 				}
-				else if (currentOpCode >= OpCode.PUSHDATA1 && currentOpCode <= OpCode.PUSHDATA4)
-				{
-					int opcodeOffset = (int)OpCode.PUSHDATA1;
-					int currentOpcode = (int)currentOpCode;
-					byte byteArraySize = (byte) Math.Pow(opcodeOffset - currentOpcode, 2);
-					var byteArray = script.Skip(i + 1).Take(byteArraySize).ToArray();
-					var numberValue = new BigInteger(byteArray);
-					outputAppends.Add($"\t{numberValue}\n");
-					i = i + 1 + byteArraySize;
-				}
+				//I can't do this without UT
+				//else if (currentOpCode >= OpCode.PUSHDATA1 && currentOpCode <= OpCode.PUSHDATA4)
+				//{
+				//	int opcodeOffset = (int)OpCode.PUSHDATA1;
+				//	int currentOpcode = (int)currentOpCode;
+				//	int informationSize = (int)Math.Pow(opcodeOffset - currentOpcode, 2);
+				//	var dataSizeInBytes = script.Skip(i + 1).Take(informationSize).ToArray();
+				//	var bytesUsed = BitConverter.ToUInt32(dataSizeInBytes);
+				//	var information = script.Skip(i + 1 + informationSize).Take((int)bytesUsed).ToArray();
+				//	var hexBytes = information.ToHexString();
+				//	outputAppends.Add($"\t{hexBytes}\n");
+				//	i = i + 1 + informationSize + bytesUsed;
+				//}
 
 				outputAppends.Add($"\t{currentOpCode.ToString()}\n");
 			}
@@ -73,6 +77,16 @@ namespace Neo.Cli.Extensions
 				output += outputAppends[i];
 			}
 
+			return output;
+		}
+
+		public static string ToCLIString(this Preferences preferences)
+		{
+			string output = $"\tAnalytics: {preferences.UseAnalytics}\n";
+			output += $"\tSkip First Use: {preferences.SkipFirstUse}\n";
+			output += $"\tFaucet Authorization File URL: {preferences.FaucetGitHubConfirmationUrl}\n";
+			output += $"\tFaucet Recipient: {preferences.FaucetAuthorizedAddress}\n";
+			output += $"\tPreferences Folder: {Preferences.FolderPath}\n";
 			return output;
 		}
 
@@ -152,7 +166,7 @@ namespace Neo.Cli.Extensions
 		{
 			var blockTime = UnixEpoch.AddMilliseconds(blockTimestamp);
 			blockTime = TimeZoneInfo.ConvertTimeFromUtc(blockTime, TimeZoneInfo.Local);
-			return blockTime.ToShortDateString() + blockTime.ToLongTimeString(); ;
+			return blockTime.ToShortDateString() + " " + blockTime.ToLongTimeString(); ;
 		}
 
 

@@ -33,6 +33,7 @@ using System.Threading.Tasks;
 using ECCurve = Neo.Cryptography.ECC.ECCurve;
 using ECPoint = Neo.Cryptography.ECC.ECPoint;
 using Neo.SmartContract.Native.Tokens;
+using Neo.User;
 
 namespace Neo.Shell
 {
@@ -1236,10 +1237,20 @@ namespace Neo.Shell
 					return OnShowContract(args);
 				case "last-transactions":
 					return OnShowLastTransactions(args);
+				case "preferences":
+					return OnShowPreferences(args);
 				default:
                     return base.OnCommand(args);
             }
         }
+
+		private bool OnShowPreferences(object[] args)
+		{
+			Console.WriteLine("Preferences: ");
+			Console.WriteLine(Preferences.Instance.ToCLIString());
+
+			return true;
+		}
 
         /// <summary>
         /// Prints the last transactions in the blockchain
@@ -1488,8 +1499,26 @@ namespace Neo.Shell
                         ProtocolSettings.Initialize(new ConfigurationBuilder().AddJsonFile("protocol.mainnet.json").Build());
                         Settings.Initialize(new ConfigurationBuilder().AddJsonFile("config.mainnet.json").Build());
                         break;
-                }
-            store = new LevelDBStore(Path.GetFullPath(Settings.Default.Paths.Chain));
+					case "--no-analytics":
+					case "-na":
+						Preferences.Instance.UseAnalytics = false;
+						break;
+					case "--enable-analytics":
+					case "-ea":
+						Preferences.Instance.UseAnalytics = true;
+						break;
+					case "--skip":
+					case "-s":
+						Preferences.Instance.SkipFirstUse = true;
+						break;
+					case "--no-skip":
+					case "-ns":
+						Preferences.Instance.SkipFirstUse = false;
+						break;
+
+				}
+			Preferences.Save();
+			store = new LevelDBStore(Path.GetFullPath(Settings.Default.Paths.Chain));
             system = new NeoSystem(store);
             system.StartNode(new ChannelsConfig
             {
