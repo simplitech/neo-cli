@@ -36,7 +36,6 @@ namespace Neo.Cli.Extensions
 				{
 					var interop = script.Skip(i + 1).Take(4).ToArray();
 					var callNumber = BitConverter.ToUInt32(interop);
-					var bytes = BitConverter.GetBytes(InteropService.Neo_Native_Deploy);
 					var methodName = supportedMethods[callNumber];
 					outputAppends.Add($"\t{methodName}\n");
 					i = i + 4;
