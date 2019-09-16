@@ -191,9 +191,10 @@ namespace Neo.Cli.Extensions
 				else if (splitedContent.Length > 2)
 				{
 					Console.ForegroundColor = newColor;
-					Console.Write(splitedContent[0] + ":");
+					var titleString = splitedContent[0] + ":";
+					Console.Write(titleString);
 					Console.ForegroundColor = currentConsoleColor;
-					Console.Write(splitedContent.Aggregate((current, next) => current + ":" + next));
+					Console.Write(splitedContent.Aggregate((current, next) => current + ":" + next).Replace(titleString, ""));
 					Console.ForegroundColor = currentConsoleColor;
 				}
 				else
@@ -203,6 +204,7 @@ namespace Neo.Cli.Extensions
 					Console.ForegroundColor = currentConsoleColor;
 				}
 			}
+			Console.WriteLine();
 
 			Console.ForegroundColor = currentConsoleColor;
 		}

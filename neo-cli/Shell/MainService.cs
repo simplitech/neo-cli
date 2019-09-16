@@ -1620,6 +1620,10 @@ namespace Neo.Shell
 				Console.ForegroundColor = currentColor;
 			}
 
+			Console.ForegroundColor = newColor;
+			Console.WriteLine("\nUse 'help' to see all commands available. ");
+			Console.ForegroundColor = currentColor;
+
 			return true;
 
 		}
