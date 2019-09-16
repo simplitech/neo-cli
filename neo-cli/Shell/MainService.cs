@@ -60,6 +60,9 @@ namespace Neo.Shell
 
         protected override bool OnCommand(string[] args)
         {
+			if (Preferences.Instance.UseAnalytics)
+				Analytics.AddInput(args);
+
             if (Plugin.SendMessage(args)) return true;
             switch (args[0].ToLower())
             {
@@ -1239,6 +1242,8 @@ namespace Neo.Shell
 					return OnShowLastTransactions(args);
 				case "preferences":
 					return OnShowPreferences(args);
+				case "tutorial":
+					return OnShowTutorial(args);
 				default:
                     return base.OnCommand(args);
             }
@@ -1248,7 +1253,6 @@ namespace Neo.Shell
 		{
 			Console.WriteLine("Preferences: ");
 			Console.WriteLine(Preferences.Instance.ToCLIString());
-
 			return true;
 		}
 
@@ -1282,7 +1286,7 @@ namespace Neo.Shell
 					{
 						foreach (var tx in block.Transactions)
 						{
-							Console.WriteLine(tx.ToCLIString(block.Timestamp));
+							CLIHelper.PrettyPrintCLIString(tx.ToCLIString(block.Timestamp));
                             countedTransactions++;
                             if (countedTransactions == desiredCount)
                                 return true;
@@ -1334,7 +1338,7 @@ namespace Neo.Shell
 					var smartContract = snapshot.Contracts.TryGet(contract160);
 					if (smartContract != null)
 					{
-						Console.WriteLine(smartContract.ToCLIString());
+						CLIHelper.PrettyPrintCLIString(smartContract.ToCLIString());
 					}
 				}
 			}
@@ -1363,7 +1367,7 @@ namespace Neo.Shell
 					var tx = snapshot.GetTransaction(tx256);
 					if (tx != null)
 					{
-						Console.WriteLine(tx.ToCLIString());
+						CLIHelper.PrettyPrintCLIString(tx.ToCLIString());
 					}
 				}
 			}
@@ -1393,7 +1397,7 @@ namespace Neo.Shell
 						if (snapshot.ContainsBlock(blockHash))
 						{
 							var block = snapshot.GetBlock(blockHash);
-							Console.WriteLine($"Block: {block.ToCLIString()}");
+							CLIHelper.PrettyPrintCLIString(block.ToCLIString());
 						}
 						else
 						{
@@ -1406,7 +1410,7 @@ namespace Neo.Shell
 						var header = snapshot.GetBlock(blockIndex);
 						if (header != null)
 						{
-							Console.WriteLine($"Block: {header.ToCLIString()}");
+							CLIHelper.PrettyPrintCLIString(header.ToCLIString());
 						}
 					}
 				}
@@ -1552,9 +1556,75 @@ namespace Neo.Shell
                     password: Settings.Default.RPC.SslCertPassword,
                     maxGasInvoke: Settings.Default.RPC.MaxGasInvoke);
             }
+			
         }
 
-        private bool OnStartCommand(string[] args)
+		private bool OnShowTutorial(string[] args)
+		{
+			//1 - welcome
+			//2 - new genesis - show block 0
+			//3 - show contract neo
+			//4 - show contract gas
+			//5 - show contract policy
+			//6 - show last-transactions 2
+			//7 - tool faucet configure
+			//8 - send gas
+			//9 - invoke gas
+			//10 - show last-transactions 2 --sender=self
+			var currentColor = Console.ForegroundColor;
+			var newColor = ConsoleColor.DarkCyan;
+			Console.WriteLine("Welcome to Neo 3 introduction tutorial.");
+			Console.WriteLine("\nUse show block to start exploring. Example: show block 0");
+			bool showInfo = ReadUserInput("Try 'show block 0' ?").IsYes();
+			if (showInfo)
+			{
+				this.OnCommand("show block 0".Split(" "));
+				Console.ForegroundColor = newColor;
+				Console.WriteLine("\nNeo 3 only has one kind of Transaction. This simplifies how tools and services interact" +
+					" with the our nodes. In our new GenesisBlock, we deploy NEO, GAS and NetworkPolicy smart contracts. The new Transaction is very similar " +
+					"to our previous InvocationTransaction.");
+				Console.ForegroundColor = currentColor;
+			}
+
+			Console.WriteLine("\nUse show contract to view the contract information. Example: show contract gas");
+			showInfo = ReadUserInput("Try 'show contract gas' ?").IsYes();
+			if (showInfo)
+			{
+				this.OnCommand("show contract gas".Split(" "));
+				Console.ForegroundColor = newColor;
+				Console.WriteLine("\nBoth NEO and GAS native contracts are NEP-5 compatible and can be called from other smart contracts, " +
+					"using support all NEP-5 and NEP-10 methods.");
+				Console.ForegroundColor = currentColor;
+			}
+
+			Console.WriteLine("\nYou can invoke NEO and GAS using NEP-5 methods. Example: 'invoke neo name'");
+			showInfo = ReadUserInput("Try 'invoke neo name' ?").IsYes();
+			if (showInfo)
+			{
+				this.OnCommand("invoke neo name".Split(" "));
+				Console.ForegroundColor = newColor;
+				Console.WriteLine("\nDon't worry if you got a 'No Balance'  error. We are going to provide you some testnet GAS later.");
+				Console.ForegroundColor = currentColor;
+			}
+
+			Console.WriteLine("\nNeo 3 uses a native contract to control the network policy. " +
+				"You can check the network policy ABI by using using 'show contract policy'. ");
+			showInfo = ReadUserInput("Try 'show contract policy' ?").IsYes();
+			if (showInfo)
+			{
+				this.OnCommand("show contract policy".Split(" "));
+				Console.ForegroundColor = newColor;
+				Console.WriteLine("\nThe network fee and the maximum transactions per block are " +
+					"elements that are now in our network policy contract. " +
+					"\nThis native contract replaces the network policy plugin.");
+				Console.ForegroundColor = currentColor;
+			}
+
+			return true;
+
+		}
+
+		private bool OnStartCommand(string[] args)
         {
             switch (args[1].ToLower())
             {

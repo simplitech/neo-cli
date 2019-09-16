@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Neo.User;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
@@ -268,48 +269,75 @@ namespace Neo.Services
         }
 
         private void RunConsole()
-        {
-            bool running = true;
-            string[] emptyarg = new string[] { "" };
-            if (Environment.OSVersion.Platform == PlatformID.Win32NT)
-                Console.Title = ServiceName;
+		{
+			bool running = true;
+			string[] emptyarg = new string[] { "" };
+			if (Environment.OSVersion.Platform == PlatformID.Win32NT)
+				Console.Title = ServiceName;
 
-            Console.ForegroundColor = ConsoleColor.DarkGreen;
-            Console.WriteLine($"{ServiceName} Version: {Assembly.GetEntryAssembly().GetVersion()}");
-            Console.WriteLine();
+			Console.ForegroundColor = ConsoleColor.DarkGreen;
+			Console.WriteLine($"{ServiceName} Version: {Assembly.GetEntryAssembly().GetVersion()}");
+			Console.WriteLine();
 
-            while (running)
-            {
-                if (ShowPrompt)
-                {
-                    Console.ForegroundColor = ConsoleColor.Green;
-                    Console.Write($"{Prompt}> ");
-                }
+			ShowAnalyticsWarning();
+			ShowSurveyLink();
 
-                Console.ForegroundColor = ConsoleColor.Yellow;
-                string line = Console.ReadLine()?.Trim();
-                if (line == null) break;
-                Console.ForegroundColor = ConsoleColor.White;
+			while (running)
+			{
+				if (ShowPrompt)
+				{
+					Console.ForegroundColor = ConsoleColor.Green;
+					Console.Write($"{Prompt}> ");
+				}
 
-                try
-                {
-                    string[] args = ParseCommandLine(line);
-                    if (args.Length == 0)
-                        args = emptyarg;
+				Console.ForegroundColor = ConsoleColor.Yellow;
+				string line = Console.ReadLine()?.Trim();
+				if (line == null) break;
+				Console.ForegroundColor = ConsoleColor.White;
 
-                    running = OnCommand(args);
-                }
-                catch (Exception ex)
-                {
+				try
+				{
+					string[] args = ParseCommandLine(line);
+					if (args.Length == 0)
+						args = emptyarg;
+
+					running = OnCommand(args);
+				}
+				catch (Exception ex)
+				{
 #if DEBUG
-                    Console.WriteLine($"error: {ex.Message}");
+					Console.WriteLine($"error: {ex.Message}");
 #else
                     Console.WriteLine("error");
 #endif
-                }
-            }
+				}
+			}
 
-            Console.ResetColor();
-        }
-    }
+			Console.ResetColor();
+		}
+
+		private static void ShowSurveyLink()
+		{
+			Console.ForegroundColor = ConsoleColor.DarkCyan;
+			Console.WriteLine();
+			Console.WriteLine("Please help us to improve neo by sharing your opinion with us: https://forms.gle/1JKZtX8dXXZMnwAm8");
+			Console.WriteLine("Learn how to contribute: https://github.com/neo-project/neo/blob/master/CONTRIBUTING.md");
+			Console.WriteLine();
+			Console.ForegroundColor = ConsoleColor.DarkGreen;
+		}
+
+		private static void ShowAnalyticsWarning()
+		{
+			if (Preferences.Instance.UseAnalytics)
+			{
+				Console.ForegroundColor = ConsoleColor.DarkCyan;
+				Console.WriteLine("This is an community-based and experimental version of neo3-preview1. " +
+					"\nThis software contains basic analytics to track feature usage (all information is transmitted using HTTPs). " +
+					"\nYou can disable it in your preference file ('show preferences') or by starting neo-cli with 'no-analytics' option. " +
+					"\nDo not use this software in production environments.");
+
+				Console.ForegroundColor = ConsoleColor.DarkGreen;
+			}
+		}
+	}
 }

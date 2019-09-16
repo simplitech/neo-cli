@@ -169,16 +169,53 @@ namespace Neo.Cli.Extensions
 			return blockTime.ToShortDateString() + " " + blockTime.ToLongTimeString(); ;
 		}
 
+		public static void PrettyPrintCLIString(string cliString)
+		{
+			var currentConsoleColor = Console.ForegroundColor;
+			var newColor = ConsoleColor.DarkGreen;
+			var lines = cliString.Split("\n");
+
+			foreach (var line in lines)
+			{
+				Console.WriteLine();
+				var splitedContent = line.Split(":");
+				if (splitedContent.Length == 2)
+				{
+					Console.ForegroundColor = newColor;
+					Console.Write(splitedContent[0] + ":");
+					Console.ForegroundColor = currentConsoleColor;
+					Console.Write(splitedContent[1]);
+					Console.ForegroundColor = currentConsoleColor;
+				}
+				//Date
+				else if (splitedContent.Length > 2)
+				{
+					Console.ForegroundColor = newColor;
+					Console.Write(splitedContent[0] + ":");
+					Console.ForegroundColor = currentConsoleColor;
+					Console.Write(splitedContent.Aggregate((current, next) => current + ":" + next));
+					Console.ForegroundColor = currentConsoleColor;
+				}
+				else
+				{
+					Console.ForegroundColor = currentConsoleColor;
+					Console.Write(splitedContent.Aggregate((current, next) => current + ":" + next));
+					Console.ForegroundColor = currentConsoleColor;
+				}
+			}
+
+			Console.ForegroundColor = currentConsoleColor;
+		}
+
 
 		public static string ToCLIString(this Block block)
 		{
 			string output = "";
-			output += $"Hash: {block.Hash}\n";
+			output += $"\nHash: {block.Hash}\n";
 			output += $"Index: {block.Index}\n";
 			output += $"Size: {block.Size}\n";
 			output += $"PreviousBlockHash: {block.PrevHash}\n";
 			output += $"MerkleRoot: {block.MerkleRoot}\n";
-			output += $"Time: {block.Timestamp.ToCLITimestampString()}\n";
 			output += $"NextConsensus: {block.NextConsensus}\n";
 			output += $"Transactions:\n";
 			foreach (Transaction t in block.Transactions)
