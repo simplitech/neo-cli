@@ -67,7 +67,6 @@ namespace Neo.Cli.Extensions
 
 			return output;
 		}
-		
 
 		public static List<object> DisassembleScript(byte[] script)
 		{
@@ -138,7 +137,6 @@ namespace Neo.Cli.Extensions
 				}
 
 			}
-			instructions.Reverse();
 
 			return instructions;
 		}
@@ -146,12 +144,11 @@ namespace Neo.Cli.Extensions
 		public static string DisassembledScriptToCLIString(byte[] script)
 		{
 			var supportedMethods = InteropService.SupportedMethods();
-			string output = "";
-			var outputAppends = new List<string>();
+			var output = "";
 			var commandList = DisassembleScript(script);
 			foreach(var command in commandList)
 			{
-				outputAppends.Add($"\t{command}\n");
+				output+= ($"\t{command}\n");
 			}
 
 			return output;
@@ -216,9 +213,9 @@ namespace Neo.Cli.Extensions
 		{
 			string output = "";
 			output += $"Invocation: \n";
-			output += DisassembleScript(witness.InvocationScript);
+			output += DisassembledScriptToCLIString(witness.InvocationScript);
 			output += $"Verification: \n";
-			output += DisassembleScript(witness.VerificationScript);
+			output += DisassembledScriptToCLIString(witness.VerificationScript);
 			return output;
 		}
 
@@ -330,7 +327,7 @@ namespace Neo.Cli.Extensions
 
 			output += $"Script:\n";
 			if(disassemble)
-				output += DisassembleScript(t.Script);
+				output += DisassembledScriptToCLIString(t.Script);
 			else
 				output += t.Script.ToHexString() + "\n";
 
