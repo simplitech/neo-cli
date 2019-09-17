@@ -255,26 +255,7 @@ namespace Neo.Cli.Extensions
 				Console.ForegroundColor = color;
 			}
 		}
-
-		public static string ToCLIString(this TransferScript script)
-		{
-
-			string output = "";
-			if (Preferences.KnownSmartContracts.ContainsValue(script.ContractHash))
-			{
-
-				output += $"{Preferences.KnownSmartContracts.FirstOrDefault(obj => obj.Value == script.ContractHash).Key}";
-			}
-			else
-			{
-				output += $"{script.ContractHash}";
-			}
-
-			output += $" {script.From.ToAddress()}";
-			output += $" {script.To.ToAddress()}";
-			output += $" {new BigDecimal(script.Amount, script.Decimals)}";
-			return output;
-		}
+		
 
 		public static void PrettyPrintTransferScript(this TransferScript transferScript)
 		{
@@ -301,9 +282,11 @@ namespace Neo.Cli.Extensions
 			Console.Write(from + " ");
 			Console.ForegroundColor = currentConsoleColor;
 			SwapColorIfInWallet(to, ConsoleColor.DarkRed);
-			Console.Write(to);
+			Console.Write(to + " ");
 			Console.ForegroundColor = currentConsoleColor;
+			Console.Write($"{new BigDecimal(transferScript.Amount, transferScript.Decimals)}");
 			Console.WriteLine();
+			
 		}
 
 		public static void PrettyPrintCLIString(string cliString)
