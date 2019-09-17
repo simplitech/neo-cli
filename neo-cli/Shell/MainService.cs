@@ -41,12 +41,7 @@ namespace Neo.Shell
     {
         private LevelDBStore store;
         private NeoSystem system;
-
-		private Dictionary<string, string> knownSmartContracts = new Dictionary<string, string>() {
-			{ "neo", "0x43cf98eddbe047e198a3e5d57006311442a0ca15" },
-			{ "gas", "0xa1760976db5fcdfab2a9930e8f6ce875b2d18225" },
-			{ "policy", "0x9c5699b260bd468e2160dd5d45dfd2686bba8b77" },
-		};
+		
 
         protected override string Prompt => "neo";
         public override string ServiceName => "NEO-CLI";
@@ -137,7 +132,45 @@ namespace Neo.Shell
 
 		private bool OnShowTransfers(string[] args)
 		{
-			throw new NotImplementedException();
+			BigInteger maxBlocks = GetMaxBlocksParam(args);
+			if (maxBlocks == -1)
+			{
+				Console.WriteLine("Invalid parameters");
+			}
+
+			var transactions = ListTransactionsFromBlocks(maxBlocks);
+			foreach (var tx in transactions)
+			{
+				var decodedScript = CLIHelper.DisassembleScript(tx.Script);
+				var extractedTransfers = CLIHelper.ExtractTransfersFromScript(decodedScript);
+				foreach (var txScript in extractedTransfers)
+				{
+					CLIHelper.PrettyPrintTransferScript(txScript);
+				}
+			}
+
+			return true;
+		}
+
+		private List<Transaction> ListTransactionsFromBlocks(BigInteger maxBlocks)
+		{
+			var output = new List<Transaction>();
+			var countedBlocks = 0;
+			var countedTx = 0;
+			using (var snapshot = Blockchain.Singleton.GetSnapshot())
+			{
+				var blockHash = snapshot.CurrentBlockHash;
+				Block block = snapshot.GetBlock(blockHash);
+				do
+				{
+					countedTx += block.Transactions.Length;
+					output.AddRange(block.Transactions);
+					block = snapshot.GetBlock(block.PrevHash);
+					countedBlocks++;
+				} while (countedBlocks <= maxBlocks && block != null);
+			}
+
+			return output;
 		}
 
 		private bool OnCountTransactions(string[] args)
@@ -155,36 +188,28 @@ namespace Neo.Shell
 			{
 				var strParam = args[2];
 				numberParam = BigInteger.Parse(strParam);
+
+				if (numberParam > maxBlocks)
+				{
+					Console.WriteLine($"Invalid parameters. Max blocks is {maxBlocks}");
+					return true;
+				}
 			}
 			
-			var txPerAddr = new Dictionary<UInt160, int>();
-			var countedBlocks = 0;
-			var countedTx = 0;
-			using (var snapshot = Blockchain.Singleton.GetSnapshot())
-			{
-				var blockHash = snapshot.CurrentBlockHash;
-				Block block = snapshot.GetBlock(blockHash);
-				do {
-					countedTx += block.Transactions.Length;
-					block = snapshot.GetBlock(block.PrevHash);
-					countedBlocks++;
-				} while (countedBlocks <= numberParam && block != null);
-			}
-
+			var countedTx = ListTransactionsFromBlocks(numberParam).Count;
 			Console.WriteLine($"Counted {countedTx} transactions in the last {numberParam} blocks.");
 
 			return true;
 		}
 
-		private bool OnTransactionPerAddress(string[] args)
+		private BigInteger GetMaxBlocksParam(string[] args)
 		{
+			var maxBlocks = 100000;
 			if (args.Length != 3 && args.Length != 2)
 			{
-				Console.WriteLine("Invalid parameters");
-				return true;
+				return -1;
 			}
 
-			var maxBlocks = 100000;
 			BigInteger numberParam = maxBlocks;
 
 			if (args.Length == 3)
@@ -193,6 +218,24 @@ namespace Neo.Shell
 				numberParam = BigInteger.Parse(strParam);
 			}
 
+			if (numberParam > maxBlocks)
+			{
+				return -1;
+			}
+			else
+			{
+				return numberParam;
+			}
+		}
+
+		private bool OnTransactionPerAddress(string[] args)
+		{
+			BigInteger maxBlocks = GetMaxBlocksParam(args);
+			if (maxBlocks == -1)
+			{
+				Console.WriteLine("Invalid parameters");
+			}
+			
 			var txPerAddr = new Dictionary<UInt160, int>();
 			using (var snapshot = Blockchain.Singleton.GetSnapshot())
 			{
@@ -241,37 +284,13 @@ namespace Neo.Shell
 			return true;
 		}
 
-		private void SwapColorIfInWallet(ConsoleColor currentColor, UInt160 accountHash)
-		{
-			bool inWallet = Program.Wallet.GetAccounts().Any((account) => account.ScriptHash == accountHash);
-			if (inWallet)
-			{
-				Console.ForegroundColor = ConsoleColor.DarkGreen;
-			}
-		}
-
+		
 		private bool OnTransactionPerBlock(string[] args)
 		{
-			if (args.Length != 3 && args.Length != 2)
+			BigInteger maxBlocks = GetMaxBlocksParam(args);
+			if (maxBlocks == -1)
 			{
 				Console.WriteLine("Invalid parameters");
-				return true;
-			}
-
-			var maxBlocks = 100000;
-			BigInteger numberParam = maxBlocks;
-
-			if (args.Length == 3)
-			{
-				var strParam = args[2];
-				numberParam = BigInteger.Parse(strParam);
-			}
-
-
-			if (numberParam > maxBlocks)
-			{
-				Console.WriteLine("Invalid parameter. Max Blocks is 10.000");
-				return true;
 			}
 
 			using (var snapshot = Blockchain.Singleton.GetSnapshot())
@@ -286,7 +305,7 @@ namespace Neo.Shell
 					{
 						foreach (var transaction in block.Transactions)
 						{
-							SwapColorIfInWallet(currentColor, transaction.Sender);
+							CLIHelper.SwapColorIfInWallet(transaction.Sender);
 							Console.WriteLine($"{block.Index} {transaction.Sender.ToAddress()} {transaction.Hash}");
 							Console.ForegroundColor = currentColor;
 						}
@@ -294,7 +313,7 @@ namespace Neo.Shell
 
 					countedBlocks++;
 					block = snapshot.GetBlock(block.PrevHash);
-				} while (block != null && countedBlocks <= numberParam);
+				} while (block != null && countedBlocks <= maxBlocks);
 			}
 				return true;
 		}
@@ -521,9 +540,9 @@ namespace Neo.Shell
 
         private bool OnInvokeCommand(string[] args)
         {
-			if (knownSmartContracts.ContainsKey(args[1]))
+			if (Preferences.KnownSmartContracts.ContainsKey(args[1]))
 			{
-				args[1] = knownSmartContracts[args[1]];
+				args[1] = Preferences.KnownSmartContracts[args[1]];
 			}
 
 			Transaction tx = BuildInvocationTransaction(args);
@@ -1522,9 +1541,9 @@ namespace Neo.Shell
 			else
 			{
 				string contractHash = args[2];
-				if (knownSmartContracts.ContainsKey(contractHash))
+				if (Preferences.KnownSmartContracts.ContainsKey(contractHash))
 				{
-					contractHash = knownSmartContracts[contractHash];
+					contractHash = Preferences.KnownSmartContracts[contractHash];
 				}
 
 				using (var snapshot = Blockchain.Singleton.GetSnapshot())

@@ -53,7 +53,8 @@ namespace Neo.Cli.Extensions
 						offset++;
 						var to = UInt160.Parse((string)instructions[i + offset]);
 						offset++;
-						var amount = BigInteger.Parse((string)instructions[i + offset]);
+						var amountObj = (string)instructions[i + offset];
+						var amount = new BigInteger(amountObj.HexToBytes());
 						var transferScript = new TransferScript();
 						transferScript.ContractHash = contractScriptHash.ToString();
 						transferScript.From = from;
@@ -64,7 +65,7 @@ namespace Neo.Cli.Extensions
 					i = i + offset;
 				}
 			}
-
+			
 			return output;
 		}
 
@@ -134,9 +135,10 @@ namespace Neo.Cli.Extensions
 				else
 				{
 					instructions.Add(currentOpCode.ToString());
-				}
-
+				}	
 			}
+
+			instructions.Reverse();
 
 			return instructions;
 		}
@@ -153,6 +155,8 @@ namespace Neo.Cli.Extensions
 
 			return output;
 		}
+
+		
 
 		public static string ToCLIString(this Preferences preferences)
 		{
@@ -241,6 +245,65 @@ namespace Neo.Cli.Extensions
 			var blockTime = UnixEpoch.AddMilliseconds(blockTimestamp);
 			blockTime = TimeZoneInfo.ConvertTimeFromUtc(blockTime, TimeZoneInfo.Local);
 			return blockTime.ToShortDateString() + " " + blockTime.ToLongTimeString(); ;
+		}
+
+		public static void SwapColorIfInWallet(UInt160 accountHash, ConsoleColor color = ConsoleColor.DarkGreen)
+		{
+			bool inWallet = Program.Wallet.GetAccounts().Any((account) => account.ScriptHash == accountHash);
+			if (inWallet)
+			{
+				Console.ForegroundColor = color;
+			}
+		}
+
+		public static string ToCLIString(this TransferScript script)
+		{
+
+			string output = "";
+			if (Preferences.KnownSmartContracts.ContainsValue(script.ContractHash))
+			{
+
+				output += $"{Preferences.KnownSmartContracts.FirstOrDefault(obj => obj.Value == script.ContractHash).Key}";
+			}
+			else
+			{
+				output += $"{script.ContractHash}";
+			}
+
+			output += $" {script.From.ToAddress()}";
+			output += $" {script.To.ToAddress()}";
+			output += $" {new BigDecimal(script.Amount, script.Decimals)}";
+			return output;
+		}
+
+		public static void PrettyPrintTransferScript(this TransferScript transferScript)
+		{
+			var currentConsoleColor = Console.ForegroundColor;
+			var newColor = ConsoleColor.DarkGreen;
+
+			var contract = transferScript.ContractHash;
+			var from = transferScript.From;
+			var to = transferScript.To;
+			var amount = transferScript.Amount;
+
+			if (Preferences.KnownSmartContracts.ContainsValue(contract))
+			{
+				Console.ForegroundColor = newColor;
+				Console.Write($"{Preferences.KnownSmartContracts.FirstOrDefault(obj => obj.Value == contract).Key}".ToUpperInvariant() + " ");
+				Console.ForegroundColor = currentConsoleColor;
+			}
+			else
+			{
+				Console.Write(contract + " ");
+			}
+			
+			SwapColorIfInWallet(from);
+			Console.Write(from + " ");
+			Console.ForegroundColor = currentConsoleColor;
+			SwapColorIfInWallet(to, ConsoleColor.DarkRed);
+			Console.Write(to);
+			Console.ForegroundColor = currentConsoleColor;
+			Console.WriteLine();
 		}
 
 		public static void PrettyPrintCLIString(string cliString)

@@ -15,6 +15,12 @@ namespace Neo.User
 		public bool SkipFirstUse = false;
 		public bool UseAnalytics = true;
 
+		public static readonly Dictionary<string, string> KnownSmartContracts = new Dictionary<string, string>() {
+			{ "neo", "0x43cf98eddbe047e198a3e5d57006311442a0ca15" },
+			{ "gas", "0xa1760976db5fcdfab2a9930e8f6ce875b2d18225" },
+			{ "policy", "0x9c5699b260bd468e2160dd5d45dfd2686bba8b77" },
+		};
+
 		private static Preferences _instance;
 		public static Preferences Instance
 		{
