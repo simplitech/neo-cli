@@ -108,10 +108,196 @@ namespace Neo.Shell
                     return OnUnInstallCommand(args);
 				case "tool":
 					return OnToolCommand(args);
-                default:
+				case "analytics":
+					return OnAnalyticsCommand(args);
+				default:
                     return base.OnCommand(args);
             }
         }
+
+		private bool OnAnalyticsCommand(string[] args)
+		{
+			switch (args[1].ToLower())
+			{
+				case "tx-per-block":
+				case "transactions-per-block":
+					return OnTransactionPerBlock(args);
+				case "tx-per-address":
+				case "tx-per-addr":
+				case "transactions-per-address":
+					return OnTransactionPerAddress(args);
+				case "count":
+					return OnCountTransactions(args);
+				case "transfers":
+					return OnShowTransfers(args);
+				default:
+					return base.OnCommand(args);
+			}
+		}
+
+		private bool OnShowTransfers(string[] args)
+		{
+			throw new NotImplementedException();
+		}
+
+		private bool OnCountTransactions(string[] args)
+		{
+			if (args.Length != 3 && args.Length != 2)
+			{
+				Console.WriteLine("Invalid parameters");
+				return true;
+			}
+
+			var maxBlocks = 100000;
+			BigInteger numberParam = maxBlocks;
+
+			if (args.Length == 3)
+			{
+				var strParam = args[2];
+				numberParam = BigInteger.Parse(strParam);
+			}
+			
+			var txPerAddr = new Dictionary<UInt160, int>();
+			var countedBlocks = 0;
+			var countedTx = 0;
+			using (var snapshot = Blockchain.Singleton.GetSnapshot())
+			{
+				var blockHash = snapshot.CurrentBlockHash;
+				Block block = snapshot.GetBlock(blockHash);
+				do {
+					countedTx += block.Transactions.Length;
+					block = snapshot.GetBlock(block.PrevHash);
+					countedBlocks++;
+				} while (countedBlocks <= numberParam && block != null);
+			}
+
+			Console.WriteLine($"Counted {countedTx} transactions in the last {numberParam} blocks.");
+
+			return true;
+		}
+
+		private bool OnTransactionPerAddress(string[] args)
+		{
+			if (args.Length != 3 && args.Length != 2)
+			{
+				Console.WriteLine("Invalid parameters");
+				return true;
+			}
+
+			var maxBlocks = 100000;
+			BigInteger numberParam = maxBlocks;
+
+			if (args.Length == 3)
+			{
+				var strParam = args[2];
+				numberParam = BigInteger.Parse(strParam);
+			}
+
+			var txPerAddr = new Dictionary<UInt160, int>();
+			using (var snapshot = Blockchain.Singleton.GetSnapshot())
+			{
+				var blockHash = snapshot.CurrentBlockHash;
+				var countedBlocks = 0;
+				Block block = snapshot.GetBlock(blockHash);
+				do
+				{
+					if (block.Transactions.Length > 0)
+					{
+						foreach (var transaction in block.Transactions)
+						{
+							if (txPerAddr.ContainsKey(transaction.Sender))
+							{
+								var currentValue = txPerAddr[transaction.Sender];
+								txPerAddr[transaction.Sender] = ++currentValue;
+							}
+							else
+							{
+								txPerAddr[transaction.Sender] = 1;
+							}
+						}
+					}
+
+					countedBlocks++;
+					block = snapshot.GetBlock(block.PrevHash);
+				} while (block != null && maxBlocks > countedBlocks);
+
+				var currentColor = Console.ForegroundColor;
+				foreach (var addr in txPerAddr.Keys)
+				{
+					bool inWallet = Program.Wallet.GetAccounts().Any((account) =>  account.ScriptHash == addr);
+					if (inWallet)
+					{
+						Console.ForegroundColor = ConsoleColor.DarkGreen;
+					}
+					else
+					{
+						Console.ForegroundColor = currentColor;
+					}
+
+					Console.WriteLine($"{addr.ToAddress()}:  {txPerAddr[addr]}");
+					Console.ForegroundColor = currentColor;
+				}
+			}
+			return true;
+		}
+
+		private void SwapColorIfInWallet(ConsoleColor currentColor, UInt160 accountHash)
+		{
+			bool inWallet = Program.Wallet.GetAccounts().Any((account) => account.ScriptHash == accountHash);
+			if (inWallet)
+			{
+				Console.ForegroundColor = ConsoleColor.DarkGreen;
+			}
+		}
+
+		private bool OnTransactionPerBlock(string[] args)
+		{
+			if (args.Length != 3 && args.Length != 2)
+			{
+				Console.WriteLine("Invalid parameters");
+				return true;
+			}
+
+			var maxBlocks = 100000;
+			BigInteger numberParam = maxBlocks;
+
+			if (args.Length == 3)
+			{
+				var strParam = args[2];
+				numberParam = BigInteger.Parse(strParam);
+			}
+
+
+			if (numberParam > maxBlocks)
+			{
+				Console.WriteLine("Invalid parameter. Max Blocks is 10.000");
+				return true;
+			}
+
+			using (var snapshot = Blockchain.Singleton.GetSnapshot())
+			{
+				var blockHash = snapshot.CurrentBlockHash;
+				var countedBlocks = 0;
+				var currentColor = Console.ForegroundColor;
+				Block block = snapshot.GetBlock(blockHash);
+				do
+				{
+					if (block.Transactions.Length > 0)
+					{
+						foreach (var transaction in block.Transactions)
+						{
+							SwapColorIfInWallet(currentColor, transaction.Sender);
+							Console.WriteLine($"{block.Index} {transaction.Sender.ToAddress()} {transaction.Hash}");
+							Console.ForegroundColor = currentColor;
+						}
+					}
+
+					countedBlocks++;
+					block = snapshot.GetBlock(block.PrevHash);
+				} while (block != null && countedBlocks <= numberParam);
+			}
+				return true;
+		}
 
 		private bool OnToolCommand(string[] args)
 		{
@@ -837,7 +1023,8 @@ namespace Neo.Shell
                 "\tshow block <index/hash>\n" +
                 "\tshow transaction <hash>\n" +
                 "\tshow last-transactions <1 - 100>\n" +
-                "\tshow contract <script hash>\n" +
+				"\tshow tutorial\n" +
+				"\tshow contract <script hash>\n" +
                 "Tool Commands:\n" +
                 "\ttool addressToScript <address>\n" +
                 "\ttool scriptToAddress <scriptHash>\n" +
@@ -1263,7 +1450,7 @@ namespace Neo.Shell
         /// <returns></returns>
 		private bool OnShowLastTransactions(string[] args)
 		{
-			if (args.Length != 3)
+			if (args.Length != 3 && args.Length != 4)
 			{
 				Console.WriteLine("Insuficient arguments");
 			}
@@ -1275,6 +1462,14 @@ namespace Neo.Shell
 					Console.WriteLine("Maxium 100 transactions");
 					return true;
 				}
+
+				bool disassemble = true;
+				if (args.Length == 4)
+				{
+					disassemble = !args[3].Contains("raw");
+				}
+				
+
 				using (var snapshot = Blockchain.Singleton.GetSnapshot())
 				{
 					var blockHash = snapshot.CurrentBlockHash;
@@ -1286,7 +1481,7 @@ namespace Neo.Shell
 					{
 						foreach (var tx in block.Transactions)
 						{
-							CLIHelper.PrettyPrintCLIString(tx.ToCLIString(block.Timestamp));
+							CLIHelper.PrettyPrintCLIString(tx.ToCLIString(block.Timestamp, disassemble));
                             countedTransactions++;
                             if (countedTransactions == desiredCount)
                                 return true;
@@ -1558,6 +1753,7 @@ namespace Neo.Shell
             }
 			
         }
+		
 
 		private bool OnShowTutorial(string[] args)
 		{
@@ -1574,8 +1770,12 @@ namespace Neo.Shell
 			var currentColor = Console.ForegroundColor;
 			var newColor = ConsoleColor.DarkCyan;
 			Console.WriteLine("Welcome to Neo 3 introduction tutorial.");
-			Console.WriteLine("\nUse show block to start exploring. Example: show block 0");
-			bool showInfo = ReadUserInput("Try 'show block 0' ?").IsYes();
+			Console.WriteLine("\nUse 'show block' to start exploring. Example: 'show block 0'");
+
+			var currentCommand = "show block 0";
+			var userInput = ReadUserInput($"Try '{currentCommand}' ?");
+			
+			var showInfo = userInput.IsYes() || userInput.Equals(currentCommand);
 			if (showInfo)
 			{
 				this.OnCommand("show block 0".Split(" "));
@@ -1586,8 +1786,10 @@ namespace Neo.Shell
 				Console.ForegroundColor = currentColor;
 			}
 
-			Console.WriteLine("\nUse show contract to view the contract information. Example: show contract gas");
-			showInfo = ReadUserInput("Try 'show contract gas' ?").IsYes();
+			currentCommand = "show contract gas";
+			Console.WriteLine($"\nUse show contract to view the contract information. Example: {currentCommand}");
+			userInput = ReadUserInput($"Try '{currentCommand}' ?");
+			showInfo = userInput.IsYes() || userInput.Equals(currentCommand);
 			if (showInfo)
 			{
 				this.OnCommand("show contract gas".Split(" "));
@@ -1597,19 +1799,41 @@ namespace Neo.Shell
 				Console.ForegroundColor = currentColor;
 			}
 
-			Console.WriteLine("\nYou can invoke NEO and GAS using NEP-5 methods. Example: 'invoke neo name'");
-			showInfo = ReadUserInput("Try 'invoke neo name' ?").IsYes();
+			Random random = new Random();
+			const string chars = "abcdefghijkmnopqrstuvxyz0123456789";
+			var randomString = new string(Enumerable.Repeat(chars, 3)
+			  .Select(s => s[random.Next(s.Length)]).ToArray());
+
+			currentCommand = $"create wallet wallets/test-{randomString}.json";
+			Console.WriteLine($"\nIt's time to create a wallet. Create a new test wallet using '{currentCommand}'.");
+			userInput = ReadUserInput($"Try '{currentCommand}' ?");
+			showInfo = userInput.IsYes() || userInput.Equals(currentCommand);
+			if (showInfo)
+			{
+				this.OnCommand(currentCommand.Split(" "));
+				Console.ForegroundColor = newColor;
+				Console.WriteLine("\nYou now have a wallet and start sending transactions to the network.");
+				Console.ForegroundColor = currentColor;
+			}
+
+			currentCommand = "invoke neo name";
+			Console.WriteLine($"\nYou can invoke NEO and GAS using NEP-5 methods. Example: '{currentCommand}'");
+			userInput = ReadUserInput($"Try '{currentCommand}' ?");
+			showInfo = userInput.IsYes() || userInput.Equals(currentCommand);
 			if (showInfo)
 			{
 				this.OnCommand("invoke neo name".Split(" "));
 				Console.ForegroundColor = newColor;
-				Console.WriteLine("\nDon't worry if you got a 'No Balance'  error. We are going to provide you some testnet GAS later.");
+				Console.WriteLine("\nDon't worry if you got a 'No Balance' error, you can still see the expected transaction result and the GAS costs.");
 				Console.ForegroundColor = currentColor;
 			}
 
+			currentCommand = "show contract policy";
 			Console.WriteLine("\nNeo 3 uses a native contract to control the network policy. " +
-				"You can check the network policy ABI by using using 'show contract policy'. ");
-			showInfo = ReadUserInput("Try 'show contract policy' ?").IsYes();
+				$"You can check the network policy ABI by using using '{currentCommand}'. ");
+			userInput = ReadUserInput($"Try '{currentCommand}' ?");
+			showInfo = userInput.IsYes() || userInput.Equals(currentCommand);
+
 			if (showInfo)
 			{
 				this.OnCommand("show contract policy".Split(" "));
@@ -1621,7 +1845,7 @@ namespace Neo.Shell
 			}
 
 			Console.ForegroundColor = newColor;
-			Console.WriteLine("\nUse 'help' to see all commands available. ");
+			Console.WriteLine("\nUse 'help' to see all commands available.\nUse 'show last-transactions 10'  to see the last 10 transactions on the network. ");
 			Console.ForegroundColor = currentColor;
 
 			return true;

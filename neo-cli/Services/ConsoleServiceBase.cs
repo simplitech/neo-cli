@@ -11,264 +11,264 @@ using System.Text;
 
 namespace Neo.Services
 {
-    public abstract class ConsoleServiceBase
-    {
-        protected virtual string Depends => null;
-        protected virtual string Prompt => "service";
+	public abstract class ConsoleServiceBase
+	{
+		protected virtual string Depends => null;
+		protected virtual string Prompt => "service";
 
-        public abstract string ServiceName { get; }
+		public abstract string ServiceName { get; }
 
-        protected bool ShowPrompt { get; set; } = true;
+		protected bool ShowPrompt { get; set; } = true;
 
-        protected virtual bool OnCommand(string[] args)
-        {
-            switch (args[0].ToLower())
-            {
-                case "":
-                    return true;
-                case "clear":
-                    Console.Clear();
-                    return true;
-                case "exit":
-                    return false;
-                case "version":
-                    Console.WriteLine(Assembly.GetEntryAssembly().GetVersion());
-                    return true;
-                default:
-                    Console.WriteLine("error: command not found " + args[0]);
-                    return true;
-            }
-        }
+		protected virtual bool OnCommand(string[] args)
+		{
+			switch (args[0].ToLower())
+			{
+				case "":
+					return true;
+				case "clear":
+					Console.Clear();
+					return true;
+				case "exit":
+					return false;
+				case "version":
+					Console.WriteLine(Assembly.GetEntryAssembly().GetVersion());
+					return true;
+				default:
+					Console.WriteLine("error: command not found " + args[0]);
+					return true;
+			}
+		}
 
-        protected internal abstract void OnStart(string[] args);
+		protected internal abstract void OnStart(string[] args);
 
-        protected internal abstract void OnStop();
+		protected internal abstract void OnStop();
 
-        private static string[] ParseCommandLine(string line)
-        {
-            List<string> outputArgs = new List<string>();
-            using (StringReader reader = new StringReader(line))
-            {
-                while (true)
-                {
-                    switch (reader.Peek())
-                    {
-                        case -1:
-                            return outputArgs.ToArray();
-                        case ' ':
-                            reader.Read();
-                            break;
-                        case '\"':
-                            outputArgs.Add(ParseCommandLineString(reader));
-                            break;
-                        default:
-                            outputArgs.Add(ParseCommandLineArgument(reader));
-                            break;
-                    }
-                }
-            }
-        }
+		private static string[] ParseCommandLine(string line)
+		{
+			List<string> outputArgs = new List<string>();
+			using (StringReader reader = new StringReader(line))
+			{
+				while (true)
+				{
+					switch (reader.Peek())
+					{
+						case -1:
+							return outputArgs.ToArray();
+						case ' ':
+							reader.Read();
+							break;
+						case '\"':
+							outputArgs.Add(ParseCommandLineString(reader));
+							break;
+						default:
+							outputArgs.Add(ParseCommandLineArgument(reader));
+							break;
+					}
+				}
+			}
+		}
 
-        private static string ParseCommandLineArgument(TextReader reader)
-        {
-            StringBuilder sb = new StringBuilder();
-            while (true)
-            {
-                int c = reader.Read();
-                switch (c)
-                {
-                    case -1:
-                    case ' ':
-                        return sb.ToString();
-                    default:
-                        sb.Append((char)c);
-                        break;
-                }
-            }
-        }
+		private static string ParseCommandLineArgument(TextReader reader)
+		{
+			StringBuilder sb = new StringBuilder();
+			while (true)
+			{
+				int c = reader.Read();
+				switch (c)
+				{
+					case -1:
+					case ' ':
+						return sb.ToString();
+					default:
+						sb.Append((char)c);
+						break;
+				}
+			}
+		}
 
-        private static string ParseCommandLineString(TextReader reader)
-        {
-            if (reader.Read() != '\"') throw new FormatException();
-            StringBuilder sb = new StringBuilder();
-            while (true)
-            {
-                int c = reader.Peek();
-                switch (c)
-                {
-                    case '\"':
-                        reader.Read();
-                        return sb.ToString();
-                    case '\\':
-                        sb.Append(ParseEscapeCharacter(reader));
-                        break;
-                    default:
-                        reader.Read();
-                        sb.Append((char)c);
-                        break;
-                }
-            }
-        }
+		private static string ParseCommandLineString(TextReader reader)
+		{
+			if (reader.Read() != '\"') throw new FormatException();
+			StringBuilder sb = new StringBuilder();
+			while (true)
+			{
+				int c = reader.Peek();
+				switch (c)
+				{
+					case '\"':
+						reader.Read();
+						return sb.ToString();
+					case '\\':
+						sb.Append(ParseEscapeCharacter(reader));
+						break;
+					default:
+						reader.Read();
+						sb.Append((char)c);
+						break;
+				}
+			}
+		}
 
-        private static char ParseEscapeCharacter(TextReader reader)
-        {
-            if (reader.Read() != '\\') throw new FormatException();
-            int c = reader.Read();
-            switch (c)
-            {
-                case -1:
-                    throw new FormatException();
-                case 'n':
-                    return '\n';
-                case 'r':
-                    return '\r';
-                case 't':
-                    return '\t';
-                case 'x':
-                    StringBuilder sb = new StringBuilder();
-                    for (int i = 0; i < 2; i++)
-                    {
-                        int h = reader.Read();
-                        if (h >= '0' && h <= '9' || h >= 'A' && h <= 'F' || h >= 'a' && h <= 'f')
-                            sb.Append((char)h);
-                        else
-                            throw new FormatException();
-                    }
-                    return (char)byte.Parse(sb.ToString(), NumberStyles.AllowHexSpecifier);
-                default:
-                    return (char)c;
-            }
-        }
+		private static char ParseEscapeCharacter(TextReader reader)
+		{
+			if (reader.Read() != '\\') throw new FormatException();
+			int c = reader.Read();
+			switch (c)
+			{
+				case -1:
+					throw new FormatException();
+				case 'n':
+					return '\n';
+				case 'r':
+					return '\r';
+				case 't':
+					return '\t';
+				case 'x':
+					StringBuilder sb = new StringBuilder();
+					for (int i = 0; i < 2; i++)
+					{
+						int h = reader.Read();
+						if (h >= '0' && h <= '9' || h >= 'A' && h <= 'F' || h >= 'a' && h <= 'f')
+							sb.Append((char)h);
+						else
+							throw new FormatException();
+					}
+					return (char)byte.Parse(sb.ToString(), NumberStyles.AllowHexSpecifier);
+				default:
+					return (char)c;
+			}
+		}
 
-        public static string ReadUserInput(string prompt, bool password = false)
-        {
-            const string t = " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~";
-            StringBuilder sb = new StringBuilder();
-            ConsoleKeyInfo key;
-            Console.Write(prompt);
-            Console.Write(": ");
+		public static string ReadUserInput(string prompt, bool password = false)
+		{
+			const string t = " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~";
+			StringBuilder sb = new StringBuilder();
+			ConsoleKeyInfo key;
+			Console.Write(prompt);
+			Console.Write(": ");
 
-            Console.ForegroundColor = ConsoleColor.Yellow;
+			Console.ForegroundColor = ConsoleColor.Yellow;
 
-            do
-            {
-                key = Console.ReadKey(true);
-                if (t.IndexOf(key.KeyChar) != -1)
-                {
-                    sb.Append(key.KeyChar);
-                    if (password)
-                    {
-                        Console.Write('*');
-                    }
-                    else
-                    {
-                        Console.Write(key.KeyChar);
-                    }
-                }
-                else if (key.Key == ConsoleKey.Backspace && sb.Length > 0)
-                {
-                    sb.Length--;
-                    Console.Write(key.KeyChar);
-                    Console.Write(' ');
-                    Console.Write(key.KeyChar);
-                }
-            } while (key.Key != ConsoleKey.Enter);
+			do
+			{
+				key = Console.ReadKey(true);
+				if (t.IndexOf(key.KeyChar) != -1)
+				{
+					sb.Append(key.KeyChar);
+					if (password)
+					{
+						Console.Write('*');
+					}
+					else
+					{
+						Console.Write(key.KeyChar);
+					}
+				}
+				else if (key.Key == ConsoleKey.Backspace && sb.Length > 0)
+				{
+					sb.Length--;
+					Console.Write(key.KeyChar);
+					Console.Write(' ');
+					Console.Write(key.KeyChar);
+				}
+			} while (key.Key != ConsoleKey.Enter);
 
-            Console.ForegroundColor = ConsoleColor.White;
-            Console.WriteLine();
-            return sb.ToString();
-        }
+			Console.ForegroundColor = ConsoleColor.White;
+			Console.WriteLine();
+			return sb.ToString();
+		}
 
-        public static SecureString ReadSecureString(string prompt)
-        {
-            const string t = " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~";
-            SecureString securePwd = new SecureString();
-            ConsoleKeyInfo key;
-            Console.Write(prompt);
-            Console.Write(": ");
+		public static SecureString ReadSecureString(string prompt)
+		{
+			const string t = " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~";
+			SecureString securePwd = new SecureString();
+			ConsoleKeyInfo key;
+			Console.Write(prompt);
+			Console.Write(": ");
 
-            Console.ForegroundColor = ConsoleColor.Yellow;
+			Console.ForegroundColor = ConsoleColor.Yellow;
 
-            do
-            {
-                key = Console.ReadKey(true);
-                if (t.IndexOf(key.KeyChar) != -1)
-                {
-                    securePwd.AppendChar(key.KeyChar);
-                    Console.Write('*');
-                }
-                else if (key.Key == ConsoleKey.Backspace && securePwd.Length > 0)
-                {
-                    securePwd.RemoveAt(securePwd.Length - 1);
-                    Console.Write(key.KeyChar);
-                    Console.Write(' ');
-                    Console.Write(key.KeyChar);
-                }
-            } while (key.Key != ConsoleKey.Enter);
+			do
+			{
+				key = Console.ReadKey(true);
+				if (t.IndexOf(key.KeyChar) != -1)
+				{
+					securePwd.AppendChar(key.KeyChar);
+					Console.Write('*');
+				}
+				else if (key.Key == ConsoleKey.Backspace && securePwd.Length > 0)
+				{
+					securePwd.RemoveAt(securePwd.Length - 1);
+					Console.Write(key.KeyChar);
+					Console.Write(' ');
+					Console.Write(key.KeyChar);
+				}
+			} while (key.Key != ConsoleKey.Enter);
 
-            Console.ForegroundColor = ConsoleColor.White;
-            Console.WriteLine();
-            securePwd.MakeReadOnly();
-            return securePwd;
-        }
+			Console.ForegroundColor = ConsoleColor.White;
+			Console.WriteLine();
+			securePwd.MakeReadOnly();
+			return securePwd;
+		}
 
-        public void Run(string[] args)
-        {
-            if (Environment.UserInteractive)
-            {
-                if (args.Length > 0 && args[0] == "/install")
-                {
-                    if (Environment.OSVersion.Platform != PlatformID.Win32NT)
-                    {
-                        Console.WriteLine("Only support for installing services on Windows.");
-                        return;
-                    }
-                    string arguments = string.Format("create {0} start= auto binPath= \"{1}\"", ServiceName, Process.GetCurrentProcess().MainModule.FileName);
-                    if (!string.IsNullOrEmpty(Depends))
-                    {
-                        arguments += string.Format(" depend= {0}", Depends);
-                    }
-                    Process process = Process.Start(new ProcessStartInfo
-                    {
-                        Arguments = arguments,
-                        FileName = Path.Combine(Environment.SystemDirectory, "sc.exe"),
-                        RedirectStandardOutput = true,
-                        UseShellExecute = false
-                    });
-                    process.WaitForExit();
-                    Console.Write(process.StandardOutput.ReadToEnd());
-                }
-                else if (args.Length > 0 && args[0] == "/uninstall")
-                {
-                    if (Environment.OSVersion.Platform != PlatformID.Win32NT)
-                    {
-                        Console.WriteLine("Only support for installing services on Windows.");
-                        return;
-                    }
-                    Process process = Process.Start(new ProcessStartInfo
-                    {
-                        Arguments = string.Format("delete {0}", ServiceName),
-                        FileName = Path.Combine(Environment.SystemDirectory, "sc.exe"),
-                        RedirectStandardOutput = true,
-                        UseShellExecute = false
-                    });
-                    process.WaitForExit();
-                    Console.Write(process.StandardOutput.ReadToEnd());
-                }
-                else
-                {
-                    OnStart(args);
-                    RunConsole();
-                    OnStop();
-                }
-            }
-            else
-            {
-                ServiceBase.Run(new ServiceProxy(this));
-            }
-        }
+		public void Run(string[] args)
+		{
+			if (Environment.UserInteractive)
+			{
+				if (args.Length > 0 && args[0] == "/install")
+				{
+					if (Environment.OSVersion.Platform != PlatformID.Win32NT)
+					{
+						Console.WriteLine("Only support for installing services on Windows.");
+						return;
+					}
+					string arguments = string.Format("create {0} start= auto binPath= \"{1}\"", ServiceName, Process.GetCurrentProcess().MainModule.FileName);
+					if (!string.IsNullOrEmpty(Depends))
+					{
+						arguments += string.Format(" depend= {0}", Depends);
+					}
+					Process process = Process.Start(new ProcessStartInfo
+					{
+						Arguments = arguments,
+						FileName = Path.Combine(Environment.SystemDirectory, "sc.exe"),
+						RedirectStandardOutput = true,
+						UseShellExecute = false
+					});
+					process.WaitForExit();
+					Console.Write(process.StandardOutput.ReadToEnd());
+				}
+				else if (args.Length > 0 && args[0] == "/uninstall")
+				{
+					if (Environment.OSVersion.Platform != PlatformID.Win32NT)
+					{
+						Console.WriteLine("Only support for installing services on Windows.");
+						return;
+					}
+					Process process = Process.Start(new ProcessStartInfo
+					{
+						Arguments = string.Format("delete {0}", ServiceName),
+						FileName = Path.Combine(Environment.SystemDirectory, "sc.exe"),
+						RedirectStandardOutput = true,
+						UseShellExecute = false
+					});
+					process.WaitForExit();
+					Console.Write(process.StandardOutput.ReadToEnd());
+				}
+				else
+				{
+					OnStart(args);
+					RunConsole();
+					OnStop();
+				}
+			}
+			else
+			{
+				ServiceBase.Run(new ServiceProxy(this));
+			}
+		}
 
-        private void RunConsole()
+		private void RunConsole()
 		{
 			bool running = true;
 			string[] emptyarg = new string[] { "" };
@@ -281,6 +281,7 @@ namespace Neo.Services
 
 			ShowAnalyticsWarning();
 			ShowSurveyLink();
+			ShowFirstUse();
 
 			while (running)
 			{
@@ -316,12 +317,21 @@ namespace Neo.Services
 			Console.ResetColor();
 		}
 
+		private void ShowFirstUse()
+		{
+			//Show we force anything when is the first use?
+			Console.ForegroundColor = ConsoleColor.DarkCyan;
+			Console.WriteLine("Use 'show tutorial' to start exploring neo 3. \nUse 'show last-transactions 10'  to see the last 10 transactions on the network.");
+			Console.WriteLine();
+			Console.ForegroundColor = ConsoleColor.DarkGreen;
+		}
+
 		private static void ShowSurveyLink()
 		{
 			Console.ForegroundColor = ConsoleColor.DarkCyan;
 			Console.WriteLine();
-			Console.WriteLine("Please help us to improve neo by sharing your opinion with us: https://forms.gle/1JKZtX8dXXZMnwAm8");
-			Console.WriteLine("Learn how to contribute: https://github.com/neo-project/neo/blob/master/CONTRIBUTING.md");
+			Console.WriteLine("Your opinion is important: https://forms.gle/1JKZtX8dXXZMnwAm8");
+			Console.WriteLine("Start contributing: https://github.com/neo-project/neo/blob/master/CONTRIBUTING.md");
 			Console.WriteLine();
 			Console.ForegroundColor = ConsoleColor.DarkGreen;
 		}
@@ -332,8 +342,8 @@ namespace Neo.Services
 			{
 				Console.ForegroundColor = ConsoleColor.DarkCyan;
 				Console.WriteLine("This is an community-based and experimental version of neo3-preview1. " +
-					"\nThis software contains basic analytics to track feature usage (all information is transmitted using HTTPs). " +
-					"\nYou can disable it in your preference file ('show preferences') or by starting neo-cli with 'no-analytics' option. " +
+					//"\nThis software contains basic analytics to track feature usage (all information is transmitted using HTTPs). " +
+					//"\nYou can disable it in your preference file ('show preferences') or by starting neo-cli with 'no-analytics' option. " +
 					"\nDo not use this software in production environments.");
 
 				Console.ForegroundColor = ConsoleColor.DarkGreen;

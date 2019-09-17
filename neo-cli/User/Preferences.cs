@@ -28,23 +28,31 @@ namespace Neo.User
 			}
 		}
 
-		public static string FolderPath => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), ".neo");
+		public static string FolderPath => Path.Combine(Directory.GetCurrentDirectory(), ".preferences");
 		
 		public static void Save()
 		{
-			string folderPath = FolderPath;
-			string filePath = Path.Combine(folderPath, "neo-preferences.json");
-			var jsonRepresentation = new JObject();
-			jsonRepresentation["FaucetGitHubConfirmationUrl"] = Instance.FaucetGitHubConfirmationUrl;
-			jsonRepresentation["FaucetAuthorizedAddress"] = Instance.FaucetAuthorizedAddress;
-			jsonRepresentation["SkipFirstUse"] = Instance.SkipFirstUse;
-			jsonRepresentation["UseAnalytics"] = Instance.UseAnalytics;
-			if (!File.Exists(filePath))
+			try
 			{
-				Directory.CreateDirectory(folderPath);
-				File.Create(filePath);
+				string folderPath = FolderPath;
+				string filePath = Path.Combine(folderPath, "neo-preferences.json");
+				var jsonRepresentation = new JObject();
+				jsonRepresentation["FaucetGitHubConfirmationUrl"] = Instance.FaucetGitHubConfirmationUrl;
+				jsonRepresentation["FaucetAuthorizedAddress"] = Instance.FaucetAuthorizedAddress;
+				jsonRepresentation["SkipFirstUse"] = Instance.SkipFirstUse;
+				jsonRepresentation["UseAnalytics"] = Instance.UseAnalytics;
+				if (!File.Exists(filePath))
+				{
+					Directory.CreateDirectory(folderPath);
+					File.Create(filePath);
+				}
+				File.WriteAllText(filePath, jsonRepresentation.ToString());
 			}
-			File.WriteAllText(filePath, jsonRepresentation.ToString());
+			catch (Exception ex)
+			{
+				//Console.WriteLine("Preferences not saved");
+			}
+			
 		}
 
 		private static Preferences FromJson(JObject jsonObject)
@@ -63,10 +71,17 @@ namespace Neo.User
 
 			if (File.Exists(path))
 			{
-				string jsonContent = File.ReadAllText(path);
-				var jObjectSettings = JObject.Parse(jsonContent);
-				var settings = FromJson(jObjectSettings);
-				return settings;
+				try
+				{
+					string jsonContent = File.ReadAllText(path);
+					var jObjectSettings = JObject.Parse(jsonContent);
+					var settings = FromJson(jObjectSettings);
+					return settings;
+				}
+				catch (Exception ex)
+				{
+					return new Preferences();
+				}
 			}
 			else
 			{

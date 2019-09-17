@@ -19,16 +19,61 @@ namespace Neo.Cli.Extensions
 		public static DateTime UnixEpoch = new DateTime(1970, 1, 1, 0, 0, 0, 0);
 
 
-        public static bool IsAddress(this string strParam)
-        {
-            return strParam.StartsWith("A") && strParam.Length == 34;
-        }
+		public static bool IsAddress(this string strParam)
+		{
+			return strParam.StartsWith("A") && strParam.Length == 34;
+		}
 
-		public static string DisassembleScript(byte[] script)
+		public static List<TransferScript> ExtractTransfersFromScript(List<object> instructions)
+		{
+			var output = new List<TransferScript>();
+			var supportedMethods = InteropService.SupportedMethods();
+			var contractCall = supportedMethods[InteropService.System_Contract_Call];
+
+			for (int i = 0; i < instructions.Count; i++)
+			{
+				var instruction = instructions[i];
+				int offset = 1;
+				if (instruction.Equals(contractCall))
+				{
+					//Next instruction is the syscall
+					var contractScriptHash = instructions[i + offset];
+					offset++;
+					var operation = (string)instructions[i + offset];
+					offset++;
+					var bytes = operation.HexToBytes();
+					var utf8String = Encoding.UTF8.GetString(bytes);
+					if (utf8String.Equals("transfer"))
+					{
+						//PACK
+						offset++;
+						//PUSH3
+						offset++;
+						var from = UInt160.Parse((string)instructions[i + offset]);
+						offset++;
+						var to = UInt160.Parse((string)instructions[i + offset]);
+						offset++;
+						var amount = BigInteger.Parse((string)instructions[i + offset]);
+						var transferScript = new TransferScript();
+						transferScript.ContractHash = contractScriptHash.ToString();
+						transferScript.From = from;
+						transferScript.To = to;
+						transferScript.Amount = amount;
+						output.Add(transferScript);
+					}
+					i = i + offset;
+				}
+			}
+
+			return output;
+		}
+		
+
+		public static List<object> DisassembleScript(byte[] script)
 		{
 			var supportedMethods = InteropService.SupportedMethods();
-			string output = "";
-			var outputAppends = new List<string>();
+			var instructions = new List<object>();
+
 			for (int i = 0; i < script.Length; i++)
 			{
 				OpCode currentOpCode = (OpCode)script[i];
@@ -38,8 +83,13 @@ namespace Neo.Cli.Extensions
 					var interop = script.Skip(i + 1).Take(4).ToArray();
 					var callNumber = BitConverter.ToUInt32(interop);
 					var methodName = supportedMethods[callNumber];
-					outputAppends.Add($"\t{methodName}\n");
+					instructions.Add(methodName);
 					i = i + 4;
+				}
+				else if (currentOpCode == OpCode.PUSH0)
+				{
+					instructions.Add("0");
+					i = i + 1;
 				}
 				else if (currentOpCode <= OpCode.PUSHBYTES75)
 				{
@@ -51,30 +101,57 @@ namespace Neo.Cli.Extensions
 						var scriptHash = new UInt160(byteArray);
 						hexString = scriptHash.ToString();
 					}
-
-					outputAppends.Add($"\t{hexString}\n");
+					instructions.Add(hexString);
 					i = i + byteArraySize;
 				}
-				//I can't do this without UT
-				//else if (currentOpCode >= OpCode.PUSHDATA1 && currentOpCode <= OpCode.PUSHDATA4)
-				//{
-				//	int opcodeOffset = (int)OpCode.PUSHDATA1;
-				//	int currentOpcode = (int)currentOpCode;
-				//	int informationSize = (int)Math.Pow(opcodeOffset - currentOpcode, 2);
-				//	var dataSizeInBytes = script.Skip(i + 1).Take(informationSize).ToArray();
-				//	var bytesUsed = BitConverter.ToUInt32(dataSizeInBytes);
-				//	var information = script.Skip(i + 1 + informationSize).Take((int)bytesUsed).ToArray();
-				//	var hexBytes = information.ToHexString();
-				//	outputAppends.Add($"\t{hexBytes}\n");
-				//	i = i + 1 + informationSize + bytesUsed;
-				//}
+				else if (currentOpCode >= OpCode.PUSHDATA1 && currentOpCode <= OpCode.PUSHDATA4)
+				{
+					int opcodeOffset = (int)OpCode.PUSHDATA1;
+					int currentOpcode = (int)currentOpCode;
+					int informationSize = (int)Math.Pow(2, currentOpcode - opcodeOffset);
+					instructions.Add(currentOpCode);
+					var dataSizeInBytes = script.Skip(i + 1).Take(informationSize).ToArray();
+					long bytesUsed = 0;
 
-				outputAppends.Add($"\t{currentOpCode.ToString()}\n");
+					if (informationSize == 1)
+					{
+						bytesUsed = (byte)dataSizeInBytes[0];
+					}
+					else if (informationSize == 2)
+					{
+						bytesUsed = BitConverter.ToUInt16(dataSizeInBytes);
+					}
+					else if (informationSize == 4)
+					{
+						bytesUsed = BitConverter.ToUInt32(dataSizeInBytes);
+					}
+
+					instructions.Add(bytesUsed);
+					var information = script.Skip(i + 1 + informationSize).Take((int)bytesUsed).ToArray();
+					var hexBytes = information.ToHexString();
+					instructions.Add(hexBytes);
+					i = i + 1 + informationSize + (int)bytesUsed;
+				}
+				else
+				{
+					instructions.Add(currentOpCode.ToString());
+				}
+
 			}
+			instructions.Reverse();
 
-			for (int i = outputAppends.Count - 1; i >= 0; i--)
+			return instructions;
+		}
+
+		public static string DisassembledScriptToCLIString(byte[] script)
+		{
+			var supportedMethods = InteropService.SupportedMethods();
+			string output = "";
+			var outputAppends = new List<string>();
+			var commandList = DisassembleScript(script);
+			foreach(var command in commandList)
 			{
-				output += outputAppends[i];
+				outputAppends.Add($"\t{command}\n");
 			}
 
 			return output;
@@ -93,7 +170,7 @@ namespace Neo.Cli.Extensions
 		public static string ToCLIString(this Cosigner cosigner)
 		{
 			string output = $"\tAccount: {cosigner.Account}\n";
-			
+
 			output += "\tScope:\t";
 			if (cosigner.Scopes == WitnessScope.Global)
 			{
@@ -131,7 +208,7 @@ namespace Neo.Cli.Extensions
 					output += $"\t{allowedGroup.ToString()}\n";
 				}
 			}
-			
+
 			return output;
 		}
 
@@ -210,7 +287,7 @@ namespace Neo.Cli.Extensions
 		}
 
 
-		public static string ToCLIString(this Block block)
+		public static string ToCLIString(this Block block, bool disassemble = true)
 		{
 			string output = "";
 			output += $"\nHash: {block.Hash}\n";
@@ -222,7 +299,7 @@ namespace Neo.Cli.Extensions
 			output += $"Transactions:\n";
 			foreach (Transaction t in block.Transactions)
 			{
-				output += $"{t.ToCLIString(block.Timestamp)}";
+				output += $"{t.ToCLIString(block.Timestamp, disassemble)}";
 				output += $"\n";
 			}
 			output += $"Witnesses:\n";
@@ -231,7 +308,7 @@ namespace Neo.Cli.Extensions
 			return output;
 		}
 
-		public static string ToCLIString(this Transaction t, ulong blockTimestamp = 0)
+		public static string ToCLIString(this Transaction t, ulong blockTimestamp = 0, bool disassemble = true)
 		{	
 			string output = "";
 			output += $"Hash: {t.Hash}\n";
@@ -250,11 +327,13 @@ namespace Neo.Cli.Extensions
 					output += cosigner.ToCLIString();
 				}
 			}
-			
 
 			output += $"Script:\n";
-			output += DisassembleScript(t.Script);
-		
+			if(disassemble)
+				output += DisassembleScript(t.Script);
+			else
+				output += t.Script.ToHexString() + "\n";
+
 			output += "Witnesses: \n";
 			foreach (var witness in t.Witnesses)
 			{
