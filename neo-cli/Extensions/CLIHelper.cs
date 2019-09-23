@@ -74,6 +74,7 @@ namespace Neo.Cli.Extensions
 			var supportedMethods = InteropService.SupportedMethods();
 			var instructions = new List<object>();
 
+			
 			for (int i = 0; i < script.Length; i++)
 			{
 				OpCode currentOpCode = (OpCode)script[i];
@@ -88,8 +89,7 @@ namespace Neo.Cli.Extensions
 				}
 				else if (currentOpCode == OpCode.PUSH0)
 				{
-					instructions.Add("0");
-					i = i + 1;
+					instructions.Add(BigInteger.Zero.ToByteArray().ToHexString());
 				}
 				else if (currentOpCode <= OpCode.PUSHBYTES75)
 				{
@@ -131,6 +131,11 @@ namespace Neo.Cli.Extensions
 					var hexBytes = information.ToHexString();
 					instructions.Add(hexBytes);
 					i = i + 1 + informationSize + (int)bytesUsed;
+				}
+				else if (currentOpCode >= OpCode.PUSH1 && currentOpCode <= OpCode.PUSH16)
+				{
+					var value = currentOpCode - OpCode.PUSH1 + 1;
+					instructions.Add(new BigInteger(value).ToByteArray().ToHexString());
 				}
 				else
 				{
@@ -279,10 +284,10 @@ namespace Neo.Cli.Extensions
 			}
 			
 			SwapColorIfInWallet(from);
-			Console.Write(from + " ");
+			Console.Write(from.ToAddress() + " ");
 			Console.ForegroundColor = currentConsoleColor;
 			SwapColorIfInWallet(to, ConsoleColor.DarkRed);
-			Console.Write(to + " ");
+			Console.Write(to.ToAddress() + " ");
 			Console.ForegroundColor = currentConsoleColor;
 			Console.Write($"{new BigDecimal(transferScript.Amount, transferScript.Decimals)}");
 			Console.WriteLine();
