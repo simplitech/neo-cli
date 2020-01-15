@@ -136,9 +136,16 @@ namespace Neo.Shell
         /// <returns></returns>
         private bool OnStringToHex(string[] args)
         {
-            var strParam = args[2];
-            var bytesParam = Encoding.UTF8.GetBytes(strParam);
-            Console.WriteLine($"String to Hex: {bytesParam.ToHexString()}");
+            if (args.Length != 3)
+            {
+                Console.WriteLine("Invalid Parameters");
+            }
+            else
+            {
+                var strParam = args[2];
+                var bytesParam = Encoding.UTF8.GetBytes(strParam);
+                Console.WriteLine($"String to Hex: {bytesParam.ToHexString()}");
+            }
             return true;
         }
 
@@ -155,10 +162,17 @@ namespace Neo.Shell
             }
             else
             {
-                var hexString = args[2];
-                var bytes = hexString.HexToBytes();
-                var utf8String = Encoding.UTF8.GetString(bytes);
-                Console.WriteLine($"Hex to String: {utf8String}");
+                try
+                {
+                    var hexString = args[2];
+                    var bytes = hexString.HexToBytes();
+                    var utf8String = Encoding.UTF8.GetString(bytes);
+                    Console.WriteLine($"Hex to String: {utf8String}");
+                }
+                catch (FormatException)
+                {
+                    Console.WriteLine("Input parameter is not a hex number");
+                }
             }
 
             return true;
@@ -171,8 +185,23 @@ namespace Neo.Shell
         /// <returns></returns>
         private bool OnAddressToScript(string[] args)
         {
-            var address = args[2];
-            Console.WriteLine($"Address to ScriptHash: {address.ToScriptHash()}");
+            if (args.Length != 3)
+            {
+                Console.WriteLine("Invalid Parameters");
+            }
+            else
+            {
+                try
+                {
+                    var address = args[2];
+                    Address.Parse(address);
+                    Console.WriteLine($"Address to ScriptHash: {address.ToScriptHash()}");
+                }
+                catch (UriFormatException)
+                {
+                    Console.WriteLine("Input parameter is not a valid address");
+                }
+            }
             return true;
         }
 
@@ -183,9 +212,23 @@ namespace Neo.Shell
         /// <returns></returns>
         private bool OnScripthashToAddress(string[] args)
         {
-            var scriptHash = UInt160.Parse(args[2]);
-            var hexScript = scriptHash.ToAddress();
-            Console.WriteLine($"ScriptHash to Address: {hexScript}");
+            if (args.Length != 3)
+            {
+                Console.WriteLine("Invalid Parameters");
+            }
+            else
+            {
+                try
+                {
+                    var scriptHash = UInt160.Parse(args[2]);
+                    var hexScript = scriptHash.ToAddress();
+                    Console.WriteLine($"ScriptHash to Address: {hexScript}");
+                }
+                catch
+                {
+                    Console.WriteLine("Input parameter is not a valid scripthash");
+                }
+            }
             return true;
         }
 
@@ -196,9 +239,23 @@ namespace Neo.Shell
         /// <returns></returns>
         private bool OnNumberToHex(string[] args)
         {
-            var strParam = args[2];
-            var numberParam = BigInteger.Parse(strParam);
-            Console.WriteLine($"Number to Hex: {numberParam.ToByteArray().ToHexString()}");
+            if (args.Length != 3)
+            {
+                Console.WriteLine("Invalid Parameters");
+            }
+            else
+            {
+                var strParam = args[2];
+                try
+                {
+                    var numberParam = BigInteger.Parse(strParam);
+                    Console.WriteLine($"Number to Hex: {numberParam.ToByteArray().ToHexString()}");
+                }
+                catch (FormatException)
+                {
+                    Console.WriteLine("Input parameter is not a number");
+                }
+            }
             return true;
         }
 
@@ -215,14 +272,21 @@ namespace Neo.Shell
             }
             else
             {
-                var hexString = args[2];
-                if (hexString.StartsWith("0x", StringComparison.InvariantCultureIgnoreCase))
+                try
                 {
-                    hexString = hexString.Substring(2);
+                    var hexString = args[2];
+                    if (hexString.StartsWith("0x", StringComparison.InvariantCultureIgnoreCase))
+                    {
+                        hexString = hexString.Substring(2);
+                    }
+                    var bytes = hexString.HexToBytes();
+                    var number = new BigInteger(bytes);
+                    Console.WriteLine($"Hex to Number: {number}");
                 }
-                var bytes = hexString.HexToBytes();
-                var number = new BigInteger(bytes);
-                Console.WriteLine($"Hex to Number: {number}");
+                catch (FormatException)
+                {
+                    Console.WriteLine("Input parameter is not a hex number");
+                }
             }
 
             return true;
@@ -760,6 +824,7 @@ namespace Neo.Shell
                 "Plugin Commands:\n" +
                 "\tplugins\n" +
                 "\tinstall <pluginName>\n" +
+                "\tuninstall <pluginName>\n" +
                 "Tool Commands:\n" +
                 "\ttool addressToScript <address>\n" +
                 "\ttool scriptToAddress <scriptHash\n" +
@@ -767,7 +832,6 @@ namespace Neo.Shell
                 "\ttool stringToHex <scriptHash>\n" +
                 "\ttool hexToNumber <scriptHash>\n" +
                 "\ttool numberToHex <number>\n" +
-                "\tuninstall <pluginName>\n" +
                 "Advanced Commands:\n" +
                 "\tstart consensus\n");
 
