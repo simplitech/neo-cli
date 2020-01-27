@@ -105,47 +105,67 @@ namespace Neo.Shell
         {
             switch (args[1].ToLower())
             {
-                case "hextostr":
-                case "hextostring":
-                    return OnHexToStr(args);
-                case "stringtohex":
-                    return OnStringToHex(args);
-                case "hextonumber":
-                    return OnHexToNumber(args);
-                case "numbertohex":
-                    return OnNumberToHex(args);
-                case "addrtoscript":
-                case "addrtoscripthash":
-                case "addresstoscript":
-                case "addresstoscripthash":
-                    return OnAddressToScript(args);
-                case "scripttoaddr":
-                case "scripttoaddress":
-                case "scripthashtoaddr":
-                case "scripthashtoaddress":
-                    return OnScripthashToAddress(args);
+                case "parse":
+                    return OnToolParseCommand(args);
                 default:
                     return base.OnCommand(args);
             }
         }
 
         /// <summary>
-        /// Prints a string in hex (transfer -> 7472616e73666572)
+        /// Process "tool parse" command
         /// </summary>
-        /// <param name="args"></param>
-        /// <returns></returns>
-        private bool OnStringToHex(string[] args)
+        private bool OnToolParseCommand(string[] args)
         {
-            if (args.Length != 3)
+            if (args.Length != 5)
             {
                 Console.WriteLine("Invalid Parameters");
             }
             else
             {
-                var strParam = args[2];
-                var bytesParam = Encoding.UTF8.GetBytes(strParam);
-                Console.WriteLine($"String to Hex: {bytesParam.ToHexString()}");
+                var from = args[2];
+                var to = args[3];
+                var value = args[4];
+
+                switch (from)
+                {
+                    case "hex":
+                    case "hexstr":
+                    case "hexstring":
+                        return ParseHexString(to, value);
+                    case "str":
+                    case "string":
+                        return ParseString(to, value);
+                    case "num":
+                    case "number":
+                        return ParseNumber(to, value);
+                    case "addr":
+                    case "address":
+                        return ParseAddress(to, value);
+                    case "script":
+                    case "scripthash":
+                        return ParseScriptHash(to, value);
+                }
             }
+            return true;
+        }
+
+        /// <summary>
+        /// Process "tool parse hex" command
+        /// </summary>
+        private bool ParseHexString(string to, string value)
+        {
+            switch (to)
+            {
+                case "str":
+                case "string":
+                    return OnHexToStr(value);
+                case "num":
+                case "number":
+                    return OnHexToNumber(value);
+            }
+
+            Console.WriteLine("Invalid Parameters");
             return true;
         }
 
@@ -154,108 +174,19 @@ namespace Neo.Shell
         /// </summary>
         /// <param name="args"></param>
         /// <returns></returns>
-        private bool OnHexToStr(string[] args)
+        private bool OnHexToStr(string hexString)
         {
-            if (args.Length != 3)
+            try
             {
-                Console.WriteLine("Invalid Parameters");
+                var bytes = hexString.HexToBytes();
+                var utf8String = Encoding.UTF8.GetString(bytes);
+                Console.WriteLine($"Hex to String: {utf8String}");
             }
-            else
+            catch (FormatException)
             {
-                try
-                {
-                    var hexString = args[2];
-                    var bytes = hexString.HexToBytes();
-                    var utf8String = Encoding.UTF8.GetString(bytes);
-                    Console.WriteLine($"Hex to String: {utf8String}");
-                }
-                catch (FormatException)
-                {
-                    Console.WriteLine("Input parameter is not a hex number");
-                }
+                Console.WriteLine("Input parameter is not a hex number");
             }
 
-            return true;
-        }
-
-        /// <summary>
-        /// Converts an address to its script hash (Nfo8Ncof8QJsfkjLt1uXSEkkd29cZQcCgf -> 0x4b5acd30ba7ec77199561afa0bbd49b5e94517da)
-        /// </summary>
-        /// <param name="args"></param>
-        /// <returns></returns>
-        private bool OnAddressToScript(string[] args)
-        {
-            if (args.Length != 3)
-            {
-                Console.WriteLine("Invalid Parameters");
-            }
-            else
-            {
-                try
-                {
-                    var address = args[2];
-                    Address.Parse(address);
-                    Console.WriteLine($"Address to ScriptHash: {address.ToScriptHash()}");
-                }
-                catch (UriFormatException)
-                {
-                    Console.WriteLine("Input parameter is not a valid address");
-                }
-            }
-            return true;
-        }
-
-        /// <summary>
-        /// Converts an script hash to its equivalent address (0x4b5acd30ba7ec77199561afa0bbd49b5e94517da -> Nfo8Ncof8QJsfkjLt1uXSEkkd29cZQcCgf)
-        /// </summary>
-        /// <param name="args"></param>
-        /// <returns></returns>
-        private bool OnScripthashToAddress(string[] args)
-        {
-            if (args.Length != 3)
-            {
-                Console.WriteLine("Invalid Parameters");
-            }
-            else
-            {
-                try
-                {
-                    var scriptHash = UInt160.Parse(args[2]);
-                    var hexScript = scriptHash.ToAddress();
-                    Console.WriteLine($"ScriptHash to Address: {hexScript}");
-                }
-                catch (FormatException)
-                {
-                    Console.WriteLine("Input parameter is not a valid scripthash");
-                }
-            }
-            return true;
-        }
-
-        /// <summary>
-        /// Prints the desired number in hex format
-        /// </summary>
-        /// <param name="args"></param>
-        /// <returns></returns>
-        private bool OnNumberToHex(string[] args)
-        {
-            if (args.Length != 3)
-            {
-                Console.WriteLine("Invalid Parameters");
-            }
-            else
-            {
-                try
-                {
-                    var strParam = args[2];
-                    var numberParam = BigInteger.Parse(strParam);
-                    Console.WriteLine($"Number to Hex: {numberParam.ToByteArray().ToHexString()}");
-                }
-                catch (FormatException)
-                {
-                    Console.WriteLine("Input parameter is not a number");
-                }
-            }
             return true;
         }
 
@@ -264,29 +195,153 @@ namespace Neo.Shell
         /// </summary>
         /// <param name="args"></param>
         /// <returns></returns>
-        private bool OnHexToNumber(string[] args)
+        private bool OnHexToNumber(string hexString)
         {
-            if (args.Length != 3)
+            try
             {
-                Console.WriteLine("Invalid Parameters");
+                if (hexString.StartsWith("0x", StringComparison.InvariantCultureIgnoreCase))
+                {
+                    hexString = hexString.Substring(2);
+                }
+                var bytes = hexString.HexToBytes();
+                var number = new BigInteger(bytes);
+                Console.WriteLine($"Hex to Number: {number}");
             }
-            else
+            catch (FormatException)
             {
-                try
-                {
-                    var hexString = args[2];
-                    if (hexString.StartsWith("0x", StringComparison.InvariantCultureIgnoreCase))
-                    {
-                        hexString = hexString.Substring(2);
-                    }
-                    var bytes = hexString.HexToBytes();
-                    var number = new BigInteger(bytes);
-                    Console.WriteLine($"Hex to Number: {number}");
-                }
-                catch (FormatException)
-                {
-                    Console.WriteLine("Input parameter is not a hex number");
-                }
+                Console.WriteLine("Input parameter is not a hex number");
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Process "tool parse string" command
+        /// </summary>
+        private bool ParseString(string to, string value)
+        {
+            switch (to)
+            {
+                case "hex":
+                case "hexstr":
+                case "hexstring":
+                    return OnStringToHex(value);
+            }
+
+            Console.WriteLine("Invalid Parameters");
+            return true;
+        }
+
+        /// <summary>
+        /// Prints a string in hex (transfer -> 7472616e73666572)
+        /// </summary>
+        /// <param name="args"></param>
+        /// <returns></returns>
+        private bool OnStringToHex(string strParam)
+        {
+            var bytesParam = Encoding.UTF8.GetBytes(strParam);
+            Console.WriteLine($"String to Hex: {bytesParam.ToHexString()}");
+
+            return true;
+        }
+
+        /// <summary>
+        /// Process "tool parse number" command
+        /// </summary>
+        private bool ParseNumber(string to, string value)
+        {
+            switch (to)
+            {
+                case "hex":
+                case "hexstr":
+                case "hexstring":
+                    return OnNumberToHex(value);
+            }
+
+            Console.WriteLine("Invalid Parameters");
+            return true;
+        }
+
+        /// <summary>
+        /// Prints the desired number in hex format
+        /// </summary>
+        /// <param name="args"></param>
+        /// <returns></returns>
+        private bool OnNumberToHex(string strParam)
+        {
+            try
+            {
+                var numberParam = BigInteger.Parse(strParam);
+                Console.WriteLine($"Number to Hex: {numberParam.ToByteArray().ToHexString()}");
+            }
+            catch (FormatException)
+            {
+                Console.WriteLine("Input parameter is not a number");
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Process "tool parse address" command
+        /// </summary>
+        private bool ParseAddress(string to, string value)
+        {
+            switch (to)
+            {
+                case "script":
+                case "scripthash":
+                    return OnAddressToScript(value);
+            }
+
+            Console.WriteLine("Invalid Parameters");
+            return true;
+        }
+
+        /// <summary>
+        /// Converts an address to its script hash (Nfo8Ncof8QJsfkjLt1uXSEkkd29cZQcCgf -> 0x4b5acd30ba7ec77199561afa0bbd49b5e94517da)
+        /// </summary>
+        /// <param name="args"></param>
+        /// <returns></returns>
+        private bool OnAddressToScript(string address)
+        {
+            Console.WriteLine($"Address to ScriptHash: {address.ToScriptHash()}");
+
+            return true;
+        }
+
+        /// <summary>
+        /// Process "tool parse script" command
+        /// </summary>
+        private bool ParseScriptHash(string to, string value)
+        {
+            switch (to)
+            {
+                case "addr":
+                case "address":
+                    return OnScripthashToAddress(value);
+            }
+
+            Console.WriteLine("Invalid Parameters");
+            return true;
+        }
+
+        /// <summary>
+        /// Converts an script hash to its equivalent address (0x4b5acd30ba7ec77199561afa0bbd49b5e94517da -> Nfo8Ncof8QJsfkjLt1uXSEkkd29cZQcCgf)
+        /// </summary>
+        /// <param name="args"></param>
+        /// <returns></returns>
+        private bool OnScripthashToAddress(string script)
+        {
+            try
+            {
+                var scriptHash = UInt160.Parse(script);
+                var hexScript = scriptHash.ToAddress();
+                Console.WriteLine($"ScriptHash to Address: {hexScript}");
+            }
+            catch (FormatException)
+            {
+                Console.WriteLine("Input parameter is not a valid scripthash");
             }
 
             return true;
@@ -826,12 +881,11 @@ namespace Neo.Shell
                 "\tinstall <pluginName>\n" +
                 "\tuninstall <pluginName>\n" +
                 "Tool Commands:\n" +
-                "\ttool addressToScript <address>\n" +
-                "\ttool scriptToAddress <scriptHash\n" +
-                "\ttool hexToString <hex string>\n" +
-                "\ttool stringToHex <scriptHash>\n" +
-                "\ttool hexToNumber <scriptHash>\n" +
-                "\ttool numberToHex <number>\n" +
+                "\ttool parse address script <address>\n" +
+                "\ttool parse script address <scriptHash>\n" +
+                "\ttool parse hex <string|number> <hex string>\n" +
+                "\ttool parse string hex <text>\n" +
+                "\ttool parse number hex <number>\n" +
                 "Advanced Commands:\n" +
                 "\tstart consensus\n");
 
