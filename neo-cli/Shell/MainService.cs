@@ -94,8 +94,553 @@ namespace Neo.Shell
                     return OnInstallCommand(args);
                 case "uninstall":
                     return OnUnInstallCommand(args);
+                case "tool":
+                    return OnToolCommand(args);
                 default:
                     return base.OnCommand(args);
+            }
+        }
+
+        private bool OnToolCommand(string[] args)
+        {
+            switch (args[1].ToLower())
+            {
+                case "parse":
+                    return OnToolParseCommand(args);
+                default:
+                    return base.OnCommand(args);
+            }
+        }
+
+        /// <summary>
+        /// Process "tool parse" command
+        /// </summary>
+        private bool OnToolParseCommand(string[] args)
+        {
+            if (args.Length != 3)
+            {
+                Console.WriteLine("Invalid Parameters");
+            }
+            else
+            {
+                var input = args[2];
+                var parseFunctions = new Dictionary<string, Func<string, string>>()
+                {
+                    { "Address to BigEnd ScriptHash", AddressToBigEndScripthash },
+                    { "Address to LittleEnd ScriptHash", AddressToLittleEndScripthash },
+                    { "Address to Base64", AddressToBase64 },
+                    { "BigEnd ScriptHash to Address", BigEndScripthashToAddress },
+                    { "LittleEnd ScriptHash to Address", LittleEndScripthashToAddress },
+                    { "BigEnd and LittleEnd Exchange", ScriptHashExchange },
+                    { "Base64 to Address", Base64ToAddress },
+                    { "Base64 to String", Base64ToStr },
+                    { "Base64 to Big Integer", Base64ToNumber },
+                    { "Big Integer to Hex String", NumberToHex },
+                    { "Big Integer to Base64", NumberToBase64 },
+                    { "Hex String to String", HexToString },
+                    { "Hex String to Big Integer", HexToNumber },
+                    { "String to Hex String", StringToHex },
+                    { "String to Base64", StringToBase64 }
+                };
+
+                foreach (var pair in parseFunctions)
+                {
+                    try
+                    {
+                        var parseMethod = pair.Value;
+                        var result = parseMethod(input);
+
+                        Console.WriteLine($"{pair.Key,-30}\t{result}");
+                    }
+                    catch (ArgumentException)
+                    {
+                        // couldn't parse the value
+                    }
+                }
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// Converts an hexadecimal value to an UTF-8 string (7472616e73666572 -> transfer)
+        /// </summary>
+        /// <param name="hexString">
+        /// Hexadecimal value to be converted
+        /// </param>
+        /// <returns>
+        /// The string represented by the hexadecimal value
+        /// </returns>
+        /// <exception cref="ArgumentException">
+        /// Throw when is not possible to parse the hexadecimal value to a UTF-8 string.
+        /// </exception>
+        private string HexToString(string hexString)
+        {
+            try
+            {
+                var bytes = hexString.HexToBytes();
+                var utf8String = Encoding.UTF8.GetString(bytes);
+
+                return utf8String;
+            }
+            catch (FormatException)
+            {
+                throw new ArgumentException();
+            }
+            catch (DecoderFallbackException)
+            {
+                throw new ArgumentException();
+            }
+            catch (ArgumentNullException)
+            {
+                throw new ArgumentException();
+            }
+        }
+
+        /// <summary>
+        /// Converts an hex value to a big integer (10a400 -> 42000)
+        /// </summary>
+        /// <param name="hexString">
+        /// Hexadecimal value to be converted
+        /// </param>
+        /// <returns>
+        /// The string that represents the converted big integer
+        /// </returns>
+        /// <exception cref="ArgumentException">
+        /// Throw when is not possible to parse the hex value to big integer value.
+        /// </exception>
+        private string HexToNumber(string hexString)
+        {
+            try
+            {
+                if (hexString.StartsWith("0x", StringComparison.InvariantCultureIgnoreCase))
+                {
+                    hexString = hexString.Substring(2);
+                }
+                var bytes = hexString.HexToBytes();
+                var number = new BigInteger(bytes);
+
+                return number.ToString();
+            }
+            catch (FormatException)
+            {
+                throw new ArgumentException();
+            }
+            catch (ArgumentNullException)
+            {
+                throw new ArgumentException();
+            }
+        }
+
+        /// <summary>
+        /// Converts a string in a hexadecimal value (transfer -> 7472616e73666572)
+        /// </summary>
+        /// <param name="strParam">
+        /// String value to be converted
+        /// </param>
+        /// <returns>
+        /// The hexadecimal value that represents the converted string
+        /// </returns>
+        /// <exception cref="ArgumentException">
+        /// Throw when is not possible to parse the string value to a hexadecimal value.
+        /// </exception>
+        private string StringToHex(string strParam)
+        {
+            try
+            {
+                var bytesParam = Encoding.UTF8.GetBytes(strParam);
+                return bytesParam.ToHexString();
+            }
+            catch (ArgumentNullException)
+            {
+                throw new ArgumentException();
+            }
+            catch (EncoderFallbackException)
+            {
+                throw new ArgumentException();
+            }
+        }
+
+        /// <summary>
+        /// Converts a string in Base64 string (transfer -> dHJhbnNmZXI=)
+        /// </summary>
+        /// <param name="strParam">
+        /// String value to be converted
+        /// </param>
+        /// <returns>
+        /// The Base64 value that represents the converted string
+        /// </returns>
+        /// <exception cref="ArgumentException">
+        /// Throw when is not possible to parse the string value to a Base64 value.
+        /// </exception>
+        private string StringToBase64(string strParam)
+        {
+            try
+            {
+                byte[] bytearray = Encoding.ASCII.GetBytes(strParam);
+                string base64 = Convert.ToBase64String(bytearray.AsSpan());
+                return base64;
+            }
+            catch (ArgumentNullException)
+            {
+                throw new ArgumentException();
+            }
+            catch (EncoderFallbackException)
+            {
+                throw new ArgumentException();
+            }
+        }
+
+        /// <summary>
+        /// Converts a string number in hexadecimal format (42000 -> 10a400)
+        /// </summary>
+        /// <param name="strParam">
+        /// String that represents the number to be converted
+        /// </param>
+        /// <returns>
+        /// The string that represents the converted hexadecimal value
+        /// </returns>
+        /// <exception cref="ArgumentException">
+        /// Throw when the string does not represent a big integer value or when
+        /// it is not possible to parse the big integer value to hexadecimal.
+        /// </exception>
+        private string NumberToHex(string strParam)
+        {
+            try
+            {
+                var numberParam = BigInteger.Parse(strParam);
+                return numberParam.ToByteArray().ToHexString();
+            }
+            catch (FormatException)
+            {
+                throw new ArgumentException();
+            }
+            catch (ArgumentNullException)
+            {
+                throw new ArgumentException();
+            }
+            catch (EncoderFallbackException)
+            {
+                throw new ArgumentException();
+            }
+        }
+
+        /// <summary>
+        /// Prints the desired number in Base64 byte array (42000 -> EKQA)
+        /// </summary>
+        /// <param name="strParam">
+        /// String that represents the number to be converted
+        /// </param>
+        /// <returns>
+        /// The string that represents the converted Base64 value
+        /// </returns>
+        /// <exception cref="ArgumentException">
+        /// Throw when the string does not represent a big integer value or when
+        /// it is not possible to parse the big integer value to Base64 value.
+        /// </exception>
+        private string NumberToBase64(string strParam)
+        {
+            try
+            {
+                var number = BigInteger.Parse(strParam);
+                byte[] bytearray = number.ToByteArray();
+                string base64 = Convert.ToBase64String(bytearray.AsSpan());
+
+                return base64;
+            }
+            catch (FormatException)
+            {
+                throw new ArgumentException();
+            }
+            catch (ArgumentNullException)
+            {
+                throw new ArgumentException();
+            }
+        }
+
+        /// <summary>
+        /// Converts an address to its corresponding big end scripthash (AGLMaAqQCW9ncp2MpWLoWX6MTZvyiBxdGE -> 0x7236aa6490d58d6e6462d3c7c4146b6e289f2406)
+        /// </summary>
+        /// <param name="address">
+        /// String that represents the address to be converted
+        /// </param>
+        /// <returns>
+        /// The string that represents the converted scripthash
+        /// </returns>
+        /// <exception cref="ArgumentException">
+        /// Throw when the string does not represent an address or when
+        /// it is not possible to parse the address to scripthash.
+        /// </exception>
+        private string AddressToBigEndScripthash(string address)
+        {
+            try
+            {
+                var bigEndScript = address.ToScriptHash();
+
+                return bigEndScript.ToString();
+            }
+            catch (FormatException)
+            {
+                throw new ArgumentException();
+            }
+        }
+
+        /// <summary>
+        /// Converts an address to its corresponding little end scripthash (AGLMaAqQCW9ncp2MpWLoWX6MTZvyiBxdGE -> 06249f286e6b14c4c7d362646e8dd59064aa3672)
+        /// </summary>
+        /// <param name="address">
+        /// String that represents the address to be converted
+        /// </param>
+        /// <returns>
+        /// The string that represents the converted scripthash
+        /// </returns>
+        /// <exception cref="ArgumentException">
+        /// Throw when the string does not represent an address or when
+        /// it is not possible to parse the address to scripthash.
+        /// </exception>
+        private string AddressToLittleEndScripthash(string address)
+        {
+            try
+            {
+                var bigEndScript = address.ToScriptHash();
+                var littleEndScript = bigEndScript.ToArray().ToHexString();
+
+                return littleEndScript;
+            }
+            catch (FormatException)
+            {
+                throw new ArgumentException();
+            }
+        }
+
+        /// <summary>
+        /// Converts an address to Base64 byte array (AGLMaAqQCW9ncp2MpWLoWX6MTZvyiBxdGE -> BiSfKG5rFMTH02Jkbo3VkGSqNnI=)
+        /// </summary>
+        /// <param name="address">
+        /// String that represents the address to be converted
+        /// </param>
+        /// <returns>
+        /// The string that represents the converted Base64 value
+        /// </returns>
+        /// <exception cref="ArgumentException">
+        /// Throw when the string does not represent an address or when
+        /// it is not possible to parse the address to Base64 value.
+        /// </exception>
+        private string AddressToBase64(string address)
+        {
+            try
+            {
+                var script = address.ToScriptHash();
+                string base64 = Convert.ToBase64String(script.ToArray().AsSpan());
+
+                return base64;
+            }
+            catch (FormatException)
+            {
+                throw new ArgumentException();
+            }
+        }
+
+        /// <summary>
+        /// Converts a big end script hash to its equivalent address (0x7236aa6490d58d6e6462d3c7c4146b6e289f2406 -> AGLMaAqQCW9ncp2MpWLoWX6MTZvyiBxdGE)
+        /// </summary>
+        /// <param name="script">
+        /// String that represents the scripthash to be converted
+        /// </param>
+        /// <returns>
+        /// The string that represents the converted address
+        /// </returns>
+        /// <exception cref="ArgumentException">
+        /// Throw when the string does not represent an scripthash.
+        /// </exception>
+        private string BigEndScripthashToAddress(string script)
+        {
+            if (!script.StartsWith("0x"))
+            {
+                // it's not big end scripthash
+                throw new ArgumentException();
+            }
+
+            try
+            {
+                var scriptHash = UInt160.Parse(script);
+                var hexScript = scriptHash.ToAddress();
+                return hexScript;
+            }
+            catch (FormatException)
+            {
+                throw new ArgumentException();
+            }
+            catch (ArgumentNullException)
+            {
+                throw new ArgumentException();
+            }
+        }
+
+        /// <summary>
+        /// Converts a little end script hash to its equivalent address (06249f286e6b14c4c7d362646e8dd59064aa3672 -> AGLMaAqQCW9ncp2MpWLoWX6MTZvyiBxdGE)
+        /// </summary>
+        /// <param name="script">
+        /// String that represents the scripthash to be converted
+        /// </param>
+        /// <returns>
+        /// The string that represents the converted address
+        /// </returns>
+        /// <exception cref="ArgumentException">
+        /// Throw when the string does not represent an scripthash.
+        private string LittleEndScripthashToAddress(string script)
+        {
+            if (script.StartsWith("0x"))
+            {
+                // it's not little end scripthash
+                throw new ArgumentException();
+            }
+
+            try
+            {
+                UInt160 littleEndScript = UInt160.Parse(script);
+                string bigEndScript = littleEndScript.ToArray().ToHexString();
+                var scriptHash = UInt160.Parse(bigEndScript);
+                var hexScript = scriptHash.ToAddress();
+                return hexScript;
+            }
+            catch (FormatException)
+            {
+                throw new ArgumentException();
+            }
+            catch (ArgumentNullException)
+            {
+                throw new ArgumentException();
+            }
+        }
+
+        /// <summary>
+        /// Converts a big end script hash to a little end and vice versa
+        /// (0x7236aa6490d58d6e6462d3c7c4146b6e289f2406 <-> 06249f286e6b14c4c7d362646e8dd59064aa3672)
+        /// </summary>
+        /// <param name="script">
+        /// String that represents the scripthash to be converted
+        /// </param>
+        /// <returns>
+        /// The string that represents the converted scripthash
+        /// </returns>
+        /// <exception cref="ArgumentException">
+        /// Throw when the string does not represent an scripthash.
+        private string ScriptHashExchange(string script)
+        {
+            try
+            {
+                var scripthash = UInt160.Parse(script);
+                string bigEndScript = scripthash.ToArray().ToHexString();
+
+                if (script.StartsWith("0x"))
+                {
+                    return bigEndScript;
+                }
+                else
+                {
+                    var bigend = UInt160.Parse(bigEndScript);
+                    return bigend.ToString();
+                }
+            }
+            catch (FormatException)
+            {
+                throw new ArgumentException();
+            }
+        }
+
+        /// <summary>
+        /// Converts an Base64 byte array to address (BiSfKG5rFMTH02Jkbo3VkGSqNnI= -> AGLMaAqQCW9ncp2MpWLoWX6MTZvyiBxdGE)
+        /// </summary>
+        /// <param name="bytearray">
+        /// String that represents the Base64 value
+        /// </param>
+        /// <returns>
+        /// The string that represents the converted address
+        /// </returns>
+        /// <exception cref="ArgumentException">
+        /// Throw when the string does not represent an Base64 value or when
+        /// it is not possible to parse the Base64 value to address.
+        private string Base64ToAddress(string bytearray)
+        {
+            try
+            {
+                byte[] result = Convert.FromBase64String(bytearray).Reverse().ToArray();
+                string hex = result.ToHexString();
+                var scripthash = UInt160.Parse(hex);
+                string address = scripthash.ToAddress();
+                return address;
+            }
+            catch (FormatException)
+            {
+                throw new ArgumentException();
+            }
+            catch (ArgumentNullException)
+            {
+                throw new ArgumentException();
+            }
+        }
+
+        /// <summary>
+        /// Converts an Base64 hex string to string (dHJhbnNmZXI= -> transfer)
+        /// </summary>
+        /// <param name="bytearray">
+        /// String that represents the Base64 value
+        /// </param>
+        /// <returns>
+        /// The string that represents the converted string
+        /// </returns>
+        /// <exception cref="ArgumentException">
+        /// Throw when the string does not represent an Base64 value or when
+        /// it is not possible to parse the Base64 value to string value.
+        private string Base64ToStr(string bytearray)
+        {
+            try
+            {
+                byte[] result = Convert.FromBase64String(bytearray);
+                string str = Encoding.ASCII.GetString(result);
+                return str;
+            }
+            catch (FormatException)
+            {
+                throw new ArgumentException();
+            }
+            catch (ArgumentNullException)
+            {
+                throw new ArgumentException();
+            }
+            catch (DecoderFallbackException)
+            {
+                throw new ArgumentException();
+            }
+        }
+
+        /// <summary>
+        /// Converts an Base64 hex string to big integer value (EKQA -> 42000)
+        /// </summary>
+        /// <param name="bytearray">
+        /// String that represents the Base64 value
+        /// </param>
+        /// <returns>
+        /// The string that represents the converted big integer
+        /// </returns>
+        /// <exception cref="ArgumentException">
+        /// Throw when the string does not represent an Base64 value or when
+        /// it is not possible to parse the Base64 value to big integer value.
+        private string Base64ToNumber(string bytearray)
+        {
+            try
+            {
+                var bytes = Convert.FromBase64String(bytearray);
+                var number = new BigInteger(bytes);
+                return number.ToString();
+            }
+            catch (FormatException)
+            {
+                throw new ArgumentException();
+            }
+            catch (ArgumentNullException)
+            {
+                throw new ArgumentException();
             }
         }
 
@@ -632,6 +1177,8 @@ namespace Neo.Shell
                 "\tplugins\n" +
                 "\tinstall <pluginName>\n" +
                 "\tuninstall <pluginName>\n" +
+                "Tool Commands:\n" +
+                "\ttool parse <value>\n" +
                 "Advanced Commands:\n" +
                 "\tstart consensus\n");
 
