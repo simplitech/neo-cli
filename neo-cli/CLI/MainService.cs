@@ -35,6 +35,15 @@ namespace Neo.CLI
         public event EventHandler WalletChanged;
 
         private Wallet currentWallet;
+
+        public static DateTime UnixEpoch = new DateTime(1970, 1, 1, 0, 0, 0, 0);
+
+        private Dictionary<string, string> knownSmartContracts = new Dictionary<string, string>() {
+            { "neo", "0x43cf98eddbe047e198a3e5d57006311442a0ca15" },
+            { "gas", "0xa1760976db5fcdfab2a9930e8f6ce875b2d18225" },
+            { "policy", "0x9c5699b260bd468e2160dd5d45dfd2686bba8b77" },
+        };
+
         public Wallet CurrentWallet
         {
             get
@@ -237,6 +246,80 @@ namespace Neo.CLI
             return true;
         }
 
+        public static string DisassembleScript(byte[] script)
+        {
+            var supportedMethods = InteropService.SupportedMethods();
+            string output = "";
+            var outputAppends = new List<string>();
+            for (int i = 0; i < script.Length; i++)
+            {
+                OpCode currentOpCode = (OpCode)script[i];
+
+                if (currentOpCode == OpCode.SYSCALL)
+                {
+                    var interop = script.Skip(i + 1).Take(4).ToArray();
+                    var callNumber = BitConverter.ToUInt32(interop);
+                    var bytes = BitConverter.GetBytes(InteropService.Contract.CallEx);
+                    var methodName = supportedMethods.ElementAtOrDefault((int)callNumber);
+                    outputAppends.Add($"\t{methodName}\n");
+                    i = i + 4;
+                }
+                else if (currentOpCode <= OpCode.OVER)
+                {
+                    var byteArraySize = (int)currentOpCode;
+                    var byteArray = script.Skip(i + 1).Take(byteArraySize).ToArray();
+                    var hexString = byteArray.ToHexString();
+                    if (byteArraySize == 20)
+                    {
+                        var scriptHash = new UInt160(byteArray);
+                        hexString = scriptHash.ToString();
+                    }
+
+                    outputAppends.Add($"\t{hexString}\n");
+                    i = i + byteArraySize;
+                }
+
+                outputAppends.Add($"\t{currentOpCode.ToString()}\n");
+            }
+
+            for (int i = outputAppends.Count - 1; i >= 0; i--)
+            {
+                output += outputAppends[i];
+            }
+
+            return output;
+        }
+
+        private static Dictionary<string, Func<VM.Types.Array, string>> notificationAdapters = new Dictionary<string, Func<VM.Types.Array, string>>()
+        {
+            {"transfer", TransferNotificationCLIStringAdapter},
+            {"Transfer", TransferNotificationCLIStringAdapter}
+        };
+
+        private static string TransferNotificationCLIStringAdapter(VM.Types.Array notificationArray)
+        {
+            var fromBytes = notificationArray[1].GetSpan().ToArray();
+            var toBytes = notificationArray[2].GetSpan().ToArray();
+            var from = fromBytes.Length > 0 ? new UInt160(fromBytes) : UInt160.Zero;
+            var to = toBytes.Length > 0 ? new UInt160(toBytes) : UInt160.Zero;
+            var amount = notificationArray[3].GetBigInteger();
+
+            var output = $"transfer / {from.ToAddress()} / {to.ToAddress()} / {amount}";
+
+            return output;
+        }
+
+        private static string DefaultCLIStringAdapter(VM.Types.Array notificationArray)
+        {
+            var output = notificationArray.ToString();
+            return output;
+        }
+
+        public static Func<VM.Types.Array, string> GetCliStringAdapter(string methodName)
+        {
+            return notificationAdapters.ContainsKey(methodName) ? notificationAdapters[methodName] : DefaultCLIStringAdapter;
+        }
+
         private byte[] LoadDeploymentScript(string nefFilePath, string manifestFilePath, out UInt160 scriptHash)
         {
             if (string.IsNullOrEmpty(manifestFilePath))
@@ -335,6 +418,8 @@ namespace Neo.CLI
                 default: throw new NotSupportedException();
             }
         }
+
+
 
         public async void Start(string[] args)
         {
