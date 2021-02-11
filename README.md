@@ -102,5 +102,9 @@ In order to synchronize the network faster, please check [here](https://docs.neo
 
 ## Usage
 
-For more information about these two nodes, you can refer to [documentation](https://docs.neo.org/docs/en-us/node/introduction.html) to try out more features. 
+For more information about these two nodes, you can refer to [documentation](https://docs.neo.org/docs/en-us/node/introduction.html) to try out more features.
 
+
+## Seting up a privatenet using Neo-Cli
+
+Check out [this tutorial](neo-cli/privatenet-neo-cli-tutorial/set-privatenet-neo-cli.md) to create a privatenet.
